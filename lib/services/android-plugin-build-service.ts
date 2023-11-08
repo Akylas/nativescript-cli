@@ -218,7 +218,7 @@ export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 				pluginTempMainSrcDir,
 				shortPluginName
 			);
-			this.copySourceSetDirectories(
+			await this.copySourceSetDirectories(
 				androidSourceDirectories,
 				pluginTempMainSrcDir
 			);
@@ -238,7 +238,7 @@ export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 			this.$watchIgnoreListService.addFileToIgnoreList(
 				path.join(options.aarOutputDir, `${shortPluginName}.aar`)
 			);
-			this.copyAar(shortPluginName, pluginTempDir, options.aarOutputDir);
+			await this.copyAar(shortPluginName, pluginTempDir, options.aarOutputDir);
 			this.writePluginHashInfo(pluginSourceFileHashesInfo, pluginTempDir);
 		}
 
@@ -350,15 +350,15 @@ export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 		}
 	}
 
-	private copySourceSetDirectories(
+	private async copySourceSetDirectories(
 		androidSourceSetDirectories: string[],
 		pluginTempMainSrcDir: string
-	): void {
+	) {
 		for (const dir of androidSourceSetDirectories) {
 			const dirName = path.basename(dir);
 			const destination = path.join(pluginTempMainSrcDir, dirName);
 			this.$fs.ensureDirectoryExists(destination);
-			this.$fs.copyFile(path.join(dir, "*"), destination);
+			await this.$fs.copyFile(path.join(dir, "*"), destination);
 		}
 	}
 	private extractNamespaceFromManifest(manifestPath:string): string {
@@ -386,7 +386,7 @@ export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 		const buildGradlePath = path.join(pluginTempDir, "build.gradle");
 		const settingsGradlePath = path.join(pluginTempDir, "settings.gradle");
 
-		this.$fs.copyFile(allGradleTemplateFiles, pluginTempDir);
+		await this.$fs.copyFile(allGradleTemplateFiles, pluginTempDir);
 		const runtimeGradleVersions = await this.getRuntimeGradleVersions(
 			projectDir
 		);
@@ -663,11 +663,11 @@ export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 		this.$fs.writeFile(filePath, replacedFileContent);
 	}
 
-	private copyAar(
+	private async copyAar(
 		shortPluginName: string,
 		pluginTempDir: string,
 		aarOutputDir: string
-	): void {
+	) {
 		const finalAarName = `${shortPluginName}-release.aar`;
 		const pathToBuiltAar = path.join(
 			pluginTempDir,
@@ -680,7 +680,7 @@ export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 		if (this.$fs.exists(pathToBuiltAar)) {
 			try {
 				if (aarOutputDir) {
-					this.$fs.copyFile(
+					await this.$fs.copyFile(
 						pathToBuiltAar,
 						path.join(aarOutputDir, `${shortPluginName}.aar`)
 					);

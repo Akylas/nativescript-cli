@@ -134,7 +134,7 @@ declare global {
 		 * @param {IProjectData} projectData DTO with information about the project.
 		 * @returns {void}
 		 */
-		prepareAppResources(projectData: IProjectData): void;
+		async prepareAppResources(projectData: IProjectData);
 
 		/**
 		 * Defines if current platform is prepared (i.e. if <project dir>/platforms/<platform> dir exists).
@@ -190,7 +190,7 @@ declare global {
 		 * @param {IProjectData} projectData DTO with information about the project.
 		 * @returns {void}
 		 */
-		ensureConfigurationFileInAppResources(projectData: IProjectData): void;
+		async ensureConfigurationFileInAppResources(projectData: IProjectData);
 
 		/**
 		 * Stops all running processes that might hold a lock on the filesystem.

@@ -45,7 +45,7 @@ export class PrepareNativePlatformService
 			await this.cleanProject(platformData, { release });
 		}
 
-		platformData.platformProjectService.prepareAppResources(projectData);
+		await platformData.platformProjectService.prepareAppResources(projectData);
 
 		if (hasChangesRequirePrepare) {
 			await platformData.platformProjectService.prepareProject(

@@ -117,7 +117,7 @@ export class AndroidResourcesMigrationService
 		const getFiles = (files: string[]) =>
 			files.filter((file: string) => !isDirectory(file));
 
-		this.$fs.copyFile(
+		await this.$fs.copyFile(
 			path.join(originalAppResources, constants.APP_GRADLE_FILE_NAME),
 			path.join(appResourcesDestination, constants.APP_GRADLE_FILE_NAME)
 		);
@@ -126,25 +126,26 @@ export class AndroidResourcesMigrationService
 		const resourceDirectories = getDirectories(appResourcesFiles);
 		const resourceFiles = getFiles(appResourcesFiles);
 
-		resourceDirectories.forEach((dir) => {
+		for (let index = 0; index < resourceDirectories.length; index++) {
+			const dir = resourceDirectories[index];
 			if (path.basename(dir) !== "libs") {
 				// don't copy /App_Resources/Android/libs into the src/main/res/libs directory
-				this.$fs.copyFile(dir, appResourcesMainSourceSetResourcesDestination);
+				await this.$fs.copyFile(dir, appResourcesMainSourceSetResourcesDestination);
 			} else {
 				// copy App_Resources/Android/libs to App_ResourcesNew/Android/libs
-				this.$fs.copyFile(dir, path.join(appResourcesDestination));
+				await this.$fs.copyFile(dir, path.join(appResourcesDestination));
 			}
-		});
-
-		resourceFiles.forEach((file) => {
+		};
+		for (let index = 0; index < resourceFiles.length; index++) {
+			const file = resourceFiles[index];
 			const fileName = path.basename(file);
 			if (fileName !== constants.MANIFEST_FILE_NAME) {
 				// don't copy AndroidManifest into /App_Resources/Android as it needs to be inside src/main/
-				this.$fs.copyFile(file, path.join(appResourcesDestination, fileName));
+				await this.$fs.copyFile(file, path.join(appResourcesDestination, fileName));
 			}
-		});
+		};
 
-		this.$fs.copyFile(
+		await this.$fs.copyFile(
 			path.join(originalAppResources, constants.MANIFEST_FILE_NAME),
 			path.join(appMainSourceSet, constants.MANIFEST_FILE_NAME)
 		);

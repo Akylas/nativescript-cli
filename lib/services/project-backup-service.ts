@@ -15,12 +15,12 @@ export class ProjectBackupService implements IProjectBackupService {
 		return new ProjectBackupService.Backup(this, backupName);
 	}
 
-	backup(name: string, pathsToBackup: string[]): IBackup {
+	async backup(name: string, pathsToBackup: string[]): Promise<IBackup> {
 		const backup = new ProjectBackupService.Backup(this, name, pathsToBackup);
 		return backup.create();
 	}
 
-	restore(name: string): IBackup {
+	async restore(name: string): Promise<IBackup> {
 		const backup = new ProjectBackupService.Backup(this, name);
 		return backup.restore();
 	}
@@ -37,7 +37,7 @@ export class ProjectBackupService implements IProjectBackupService {
 			return path.resolve(this.basePath, `.${this.name}_backup`);
 		}
 
-		create() {
+		async create() {
 			const backupData = this.getBackupData();
 			const backedUpPaths = backupData?.paths || [];
 			this.$super.$logger.trace("creating backup: ", this.name);
@@ -51,7 +51,7 @@ export class ProjectBackupService implements IProjectBackupService {
 					this.$super.$logger.trace(
 						`BACKING UP ${color.cyan(sourcePath)} -> ${color.green(targetPath)}`
 					);
-					this.$super.$fs.copyFile(sourcePath, targetPath);
+					await this.$super.$fs.copyFile(sourcePath, targetPath);
 					backedUpPaths.push(pathToBackup);
 				}
 			}
@@ -65,7 +65,7 @@ export class ProjectBackupService implements IProjectBackupService {
 			return this;
 		}
 
-		restore() {
+		async restore() {
 			const backupData = this.getBackupData();
 
 			if (!backupData) {
@@ -79,7 +79,7 @@ export class ProjectBackupService implements IProjectBackupService {
 					`RESTORING ${color.green(sourcePath)} -> ${color.cyan(targetPath)}`
 				);
 				if (this.$super.$fs.exists(sourcePath)) {
-					this.$super.$fs.copyFile(sourcePath, targetPath);
+					await this.$super.$fs.copyFile(sourcePath, targetPath);
 				}
 			}
 			this.$super.$logger.trace(backupData);

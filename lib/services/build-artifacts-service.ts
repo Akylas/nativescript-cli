@@ -75,11 +75,11 @@ export class BuildArtifactsService implements IBuildArtifactsService {
 		return [];
 	}
 
-	public copyAppPackages(
+	public async copyAppPackages(
 		targetPath: string,
 		platformData: IPlatformData,
 		buildOutputOptions: IBuildOutputOptions
-	): void {
+	) {
 		targetPath = path.resolve(targetPath);
 
 		const outputPath =
@@ -109,13 +109,14 @@ export class BuildArtifactsService implements IBuildArtifactsService {
 		} else {
 			targetIsDirectory = true;
 		}
-		applicationPackages.forEach(pack => {
+		for (let index = 0; index < applicationPackages.length; index++) {
+			const pack = applicationPackages[index];
 			const targetFilePath = targetIsDirectory ? path.join(targetPath, path.basename(pack.packageName)) : targetPath;
 			if (!filterRegex || filterRegex.test(pack.packageName)) {
-				this.$fs.copyFile(pack.packageName, targetFilePath);
+				await this.$fs.copyFile(pack.packageName, targetFilePath);
 				this.$logger.info(`Copied file '${pack.packageName}' to '${targetFilePath}'.`);
 			}
-		});
+		};
 	}
 
 	private getLatestApplicationPackage(

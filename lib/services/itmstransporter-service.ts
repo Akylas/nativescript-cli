@@ -81,7 +81,7 @@ export class ITMSTransporterService implements IITMSTransporterService {
 
 		this.$fs.createDirectory(innerDirectory);
 
-		this.$fs.copyFile(data.ipaFilePath, ipaFileLocation);
+		await this.$fs.copyFile(data.ipaFilePath, ipaFileLocation);
 
 		const ipaFileHash = await this.$fs.getFileShasum(ipaFileLocation, {
 			algorithm: "md5",
@@ -130,7 +130,7 @@ export class ITMSTransporterService implements IITMSTransporterService {
 
 		this.$fs.createDirectory(innerDirectory);
 
-		this.$fs.copyFile(data.ipaFilePath, ipaFileLocation);
+		await this.$fs.copyFile(data.ipaFilePath, ipaFileLocation);
 
 		const password = data.applicationSpecificPassword;
 

@@ -63,11 +63,11 @@ interface IBuildArtifactsService {
 		platformData: IPlatformData,
 		buildOutputOptions: IBuildOutputOptions
 	): Promise<string>;
-	copyAppPackages(
+	async copyAppPackages(
 		targetPath: string,
 		platformData: IPlatformData,
 		buildOutputOptions: IBuildOutputOptions
-	): void;
+	);
 }
 
 interface IBuildInfoFileService {

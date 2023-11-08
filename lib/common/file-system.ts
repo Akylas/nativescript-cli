@@ -317,15 +317,16 @@ export class FileSystem implements IFileSystem {
 		return this.writeFile(filename, stringifiedData, encoding);
 	}
 
-	public copyFile(sourceFileName: string, destinationFileName: string): void {
+	public async copyFile(sourceFileName: string, destinationFileName: string) {
 		if (pathResolve(sourceFileName) === pathResolve(destinationFileName)) {
 			return;
 		}
 
 		this.createDirectory(dirname(destinationFileName));
-
 		// MobileApplication.app is resolved as a directory on Mac,
 		// therefore we need to copy it recursively as it's not a single file.
+		//@ts-ignore
+		// await copy(sourceFileName, destinationFileName);
 		shelljs.cp("-rf", sourceFileName, destinationFileName);
 
 		const err = shelljs.error();

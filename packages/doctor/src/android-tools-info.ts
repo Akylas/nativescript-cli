@@ -180,6 +180,7 @@ export class AndroidToolsInfo implements NativeScriptDoctor.IAndroidToolsInfo {
 			.match(AndroidToolsInfo.VERSION_REGEX);
 		const installedJavaCompilerSemverVersion =
 			matchingVersion && matchingVersion[1];
+
 		if (installedJavaCompilerSemverVersion) {
 			let warning: string = null;
 

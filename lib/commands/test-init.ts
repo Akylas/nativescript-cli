@@ -190,7 +190,7 @@ class TestInitCommand implements ICommand {
 		);
 
 		if (shouldCreateSampleTests && this.$fs.exists(exampleFilePath)) {
-			this.$fs.copyFile(exampleFilePath, targetExampleTestPath);
+			await this.$fs.copyFile(exampleFilePath, targetExampleTestPath);
 			const targetExampleTestRelativePath = path.relative(
 				projectDir,
 				targetExampleTestPath
@@ -210,7 +210,7 @@ class TestInitCommand implements ICommand {
 		);
 
 		if (!this.$fs.exists(testMainPath)) {
-			this.$fs.copyFile(testMainResourcesPath, testMainPath);
+			await this.$fs.copyFile(testMainResourcesPath, testMainPath);
 			const testMainRelativePath = path.relative(projectDir, testMainPath);
 			bufferedLogs.push(
 				`Main test entrypoint created: ${color.yellow(testMainRelativePath)}`

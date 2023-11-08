@@ -358,8 +358,8 @@ interface IProjectPathCleanupResult {
 }
 
 interface IBackup {
-	create(): IBackup;
-	restore(): IBackup;
+	async create(): Promise<IBackup>;
+	async restore(): Promise<IBackup>;
 	remove(): IBackup;
 	isUpToDate(): boolean;
 	addPath(path: string): IBackup;
@@ -368,8 +368,8 @@ interface IBackup {
 
 interface IProjectBackupService {
 	getBackup(name: string): IBackup;
-	backup(name: string, pathsToBackup: string[]): IBackup;
-	restore(name: string, pathsToRestore: string[]): IBackup;
+	backup(name: string, pathsToBackup: string[]): Promise<IBackup>;
+	restore(name: string, pathsToRestore: string[]): Promise<IBackup>;
 }
 
 interface IProjectConfigInformation {

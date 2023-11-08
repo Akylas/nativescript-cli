@@ -247,7 +247,7 @@ export class ProjectService implements IProjectService {
 			const templateAppResourcesDir = templateProjectData.getAppResourcesDirectoryPath(
 				tempDir
 			);
-			this.$fs.copyFile(
+			await this.$fs.copyFile(
 				path.join(templateAppResourcesDir, "*"),
 				appResourcesDestinationPath
 			);

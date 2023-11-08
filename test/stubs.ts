@@ -536,10 +536,10 @@ export class ProjectBackupServiceStub implements IProjectBackupService {
 
 		return backup;
 	}
-	backup(name: string, pathsToBackup: string[]): IBackup {
+	async backup(name: string, pathsToBackup: string[]): Promise<IBackup> {
 		return this.getBackup(name).create();
 	}
-	restore(name: string, pathsToRestore: string[]): IBackup {
+	async restore(name: string, pathsToRestore: string[]): Promise<IBackup> {
 		return this.getBackup(name).restore();
 	}
 
@@ -553,12 +553,12 @@ export class ProjectBackupServiceStub implements IProjectBackupService {
 			addPathsCalled: false,
 		};
 		constructor(public pathsToBackup: string[] = []) {}
-		create(): IBackup {
+		async create(): Promise<IBackup> {
 			this._meta.createCalled = true;
 
 			return this;
 		}
-		restore(): IBackup {
+		async restore(): Promise<IBackup> {
 			this._meta.restoreCalled = true;
 
 			return this;
@@ -823,7 +823,7 @@ export class PlatformProjectServiceStub
 		return Promise.resolve(true);
 	}
 
-	prepareAppResources(projectData: IProjectData): void {}
+	async prepareAppResources(projectData: IProjectData) {}
 
 	async preparePluginNativeCode(pluginData: IPluginData): Promise<void> {
 		return Promise.resolve();
@@ -850,7 +850,7 @@ export class PlatformProjectServiceStub
 		return Promise.resolve();
 	}
 
-	ensureConfigurationFileInAppResources(): void {
+	async ensureConfigurationFileInAppResources(): Promise<void> {
 		return null;
 	}
 

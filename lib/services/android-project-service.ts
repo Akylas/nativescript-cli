@@ -359,7 +359,7 @@ export class AndroidProjectService extends projectServiceBaseLib.PlatformProject
 		);
 		const allGradleTemplateFiles = path.join(gradleTemplatePath, "*");
 
-		this.$fs.copyFile(allGradleTemplateFiles, path.join(this.getPlatformData(projectData).projectRoot, 'app'));
+		await this.$fs.copyFile(allGradleTemplateFiles, path.join(this.getPlatformData(projectData).projectRoot, 'app'));
 
 		// TODO: Check if we actually need this and if it should be targetSdk or compileSdk
 		this.cleanResValues(targetSdkVersion, projectData);
@@ -618,9 +618,9 @@ export class AndroidProjectService extends projectServiceBaseLib.PlatformProject
 		// Intentionally left empty.
 	}
 
-	public ensureConfigurationFileInAppResources(
+	public async ensureConfigurationFileInAppResources(
 		projectData: IProjectData
-	): void {
+	) {
 		const appResourcesDirectoryPath = projectData.appResourcesDirectoryPath;
 		const appResourcesDirStructureHasMigrated = this.$androidResourcesMigrationService.hasMigrated(
 			appResourcesDirectoryPath
@@ -653,14 +653,14 @@ export class AndroidProjectService extends projectServiceBaseLib.PlatformProject
 		}
 		// Overwrite the AndroidManifest from runtime.
 		if (!appResourcesDirStructureHasMigrated) {
-			this.$fs.copyFile(
+			await this.$fs.copyFile(
 				originalAndroidManifestFilePath,
 				this.getPlatformData(projectData).configurationFilePath
 			);
 		}
 	}
 
-	public prepareAppResources(projectData: IProjectData): void {
+	public async prepareAppResources(projectData: IProjectData) {
 		const platformData = this.getPlatformData(projectData);
 		const projectAppResourcesPath = projectData.getAppResourcesDirectoryPath(
 			projectData.projectDir
@@ -681,7 +681,7 @@ export class AndroidProjectService extends projectServiceBaseLib.PlatformProject
 			const resourcesPath  =path.join(
 				projectAppResourcesPath,
 				platformData.normalizedPlatformName);
-			this.$fs.copyFile(
+			await this.$fs.copyFile(
 				path.join(
 					resourcesPath,
 					constants.SRC_DIR,
@@ -692,18 +692,18 @@ export class AndroidProjectService extends projectServiceBaseLib.PlatformProject
 
 			const destinationFolder = this.getPlatformData(projectData).projectRoot;
 			const contents = this.$fs.readDirectory(resourcesPath);
-			_.each(contents, (fileName) => {
+			for (let index = 0; index < contents.length; index++) {
+				const fileName = contents[index];
 				const filePath = path.join(resourcesPath, fileName);
 				const fsStat = this.$fs.getFsStats(filePath);
 				if (fsStat.isDirectory() && fileName !== constants.SRC_DIR){
-					console.log('copying folder', filePath)
-					this.$fs.copyFile(filePath,
+					await this.$fs.copyFile(filePath,
 						destinationFolder
 					);
 				}
-			});
+			};
 		} else {
-			this.$fs.copyFile(
+			await this.$fs.copyFile(
 				path.join(
 					projectAppResourcesPath,
 					platformData.normalizedPlatformName,

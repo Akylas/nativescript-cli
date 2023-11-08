@@ -1294,7 +1294,7 @@ export class MigrateController
 			tempDir
 		);
 
-		this.$fs.copyFile(
+		await this.$fs.copyFile(
 			path.resolve(tempDir, "src/polyfills.ts"),
 			possiblePaths[0]
 		);

@@ -678,7 +678,7 @@ export class IOSProjectService extends projectServiceBaseLib.PlatformProjectServ
 		}
 	}
 
-	public prepareAppResources(projectData: IProjectData): void {
+	public async prepareAppResources(projectData: IProjectData) {
 		const platformData = this.getPlatformData(projectData);
 		const projectAppResourcesPath = projectData.getAppResourcesDirectoryPath(
 			projectData.projectDir
@@ -689,7 +689,7 @@ export class IOSProjectService extends projectServiceBaseLib.PlatformProjectServ
 		this.$fs.deleteDirectory(platformsAppResourcesPath);
 		this.$fs.ensureDirectoryExists(platformsAppResourcesPath);
 
-		this.$fs.copyFile(
+		await this.$fs.copyFile(
 			path.join(
 				projectAppResourcesPath,
 				platformData.normalizedPlatformName,
@@ -726,7 +726,7 @@ export class IOSProjectService extends projectServiceBaseLib.PlatformProjectServ
 		await this.mergeProjectXcconfigFiles(projectData);
 	}
 
-	public ensureConfigurationFileInAppResources(): void {
+	public async ensureConfigurationFileInAppResources(): Promise<void> {
 		return null;
 	}
 
@@ -740,7 +740,7 @@ export class IOSProjectService extends projectServiceBaseLib.PlatformProjectServ
 			this.getPlatformData(projectData).normalizedPlatformName,
 			this.getPlatformData(projectData).configurationFileName
 		);
-		this.ensureConfigurationFileInAppResources();
+		await this.ensureConfigurationFileInAppResources();
 
 		const reporterTraceMessage = "Info.plist:";
 		const reporter: Reporter = {

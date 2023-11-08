@@ -27,7 +27,7 @@ export class TypingsCommand implements ICommand {
 		}
 		let typingsFolder = "./typings";
 		if (this.$options.copyTo) {
-			this.$fs.copyFile(
+			await this.$fs.copyFile(
 				path.resolve(this.$projectData.projectDir, "typings"),
 				this.$options.copyTo
 			);

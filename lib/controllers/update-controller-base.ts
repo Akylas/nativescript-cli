@@ -27,11 +27,11 @@ export class UpdateControllerBase {
 		});
 	}
 
-	protected restoreBackup(
+	protected async restoreBackup(
 		folders: string[],
 		backupDir: string,
 		projectDir: string
-	): void {
+	) {
 		for (const folder of folders) {
 			this.$fs.deleteDirectory(path.join(projectDir, folder));
 
@@ -39,23 +39,23 @@ export class UpdateControllerBase {
 			const folderToCopy = path.join(backupDir, fileName);
 
 			if (this.$fs.exists(folderToCopy)) {
-				this.$fs.copyFile(folderToCopy, path.resolve(projectDir, folder));
+				await this.$fs.copyFile(folderToCopy, path.resolve(projectDir, folder));
 			}
 		}
 	}
 
-	protected backup(
+	protected async backup(
 		folders: string[],
 		backupDir: string,
 		projectDir: string
-	): void {
+	) {
 		this.$fs.deleteDirectory(backupDir);
 		this.$fs.createDirectory(backupDir);
 		for (const folder of folders) {
 			const fileName = folder.replace(path.sep, "_");
 			const folderToCopy = path.join(projectDir, folder);
 			if (this.$fs.exists(folderToCopy)) {
-				this.$fs.copyFile(folderToCopy, path.resolve(backupDir, fileName));
+				await this.$fs.copyFile(folderToCopy, path.resolve(backupDir, fileName));
 			}
 		}
 	}
