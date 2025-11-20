@@ -219,21 +219,27 @@ android {
 
     signingConfigs {
         release {
-            if (project.hasProperty("release")) {
-                if (project.hasProperty("ksPath") &&
-                        project.hasProperty("ksPassword") &&
-                        project.hasProperty("alias") &&
-                        project.hasProperty("password")) {
+            if (project.hasProperty("ksPath") &&
+                    project.hasProperty("ksPassword") &&
+                    project.hasProperty("alias") &&
+                    project.hasProperty("password")) {
 
-                    storeFile file(ksPath)
-                    storePassword ksPassword
-                    keyAlias alias
-                    keyPassword password
-                }
+                storeFile file(ksPath)
+                storePassword ksPassword
+                keyAlias alias
+                keyPassword password
             }
         }
     }
     buildTypes {
+        debug {
+            if (project.hasProperty("ksPath") &&
+                    project.hasProperty("ksPassword") &&
+                    project.hasProperty("alias") &&
+                    project.hasProperty("password")) {
+                signingConfig signingConfigs.release
+            }
+        }
         release {
             signingConfig signingConfigs.release
         }

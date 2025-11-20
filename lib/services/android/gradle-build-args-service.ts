@@ -80,7 +80,11 @@ export class GradleBuildArgsService implements IGradleBuildArgsService {
 
 		if (buildData.release) {
 			args.push(
-				"-Prelease",
+				"-Prelease"
+			);
+		}
+		if (buildData.release || buildData.keyStorePath) {
+			args.push(
 				`-PksPath=${path.resolve(buildData.keyStorePath)}`,
 				`-Palias=${buildData.keyStoreAlias}`,
 				`-Ppassword=${buildData.keyStoreAliasPassword}`,
