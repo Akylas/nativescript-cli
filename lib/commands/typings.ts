@@ -160,7 +160,7 @@ export class TypingsCommand implements ICommand {
 			path.resolve(this.$projectData.projectDir, "typings", "android"),
 		);
 
-		const dtsGeneratorPath = path.resolve(
+		const dtsGeneratorPath = this.$options.dtsGeneratorPath ?? path.resolve(
 			this.$projectData.projectDir,
 			this.$projectData.getBuildRelativeDirectoryPath(),
 			"android",
@@ -200,6 +200,7 @@ export class TypingsCommand implements ICommand {
 			[
 				"-jar",
 				dtsGeneratorPath,
+				"-per-library",
 				"-input",
 				...inputs,
 				"-output",
