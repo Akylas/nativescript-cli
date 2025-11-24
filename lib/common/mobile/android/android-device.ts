@@ -102,7 +102,7 @@ export class AndroidDevice implements Mobile.IAndroidDevice {
 			abis: [
 				...details["cpu.abilist64"].split(","),
 				...details["cpu.abilist32"].split(","),
-			],
+			].filter(s=>s.length > 0),
 			version,
 			vendor: details.brand,
 			platform: this.$devicePlatformsConstants.Android,

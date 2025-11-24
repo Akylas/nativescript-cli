@@ -34,7 +34,10 @@ export class GradleBuildService
 			let devices = this.$devicesService.getDevicesForPlatform(
 				buildData.platform
 			);
-			if (buildData.emulator) {
+			if (buildData.device) {
+				devices = devices.filter((d) => d.deviceInfo.identifier === buildData.device);
+			}
+			 else if (buildData.emulator) {
 				devices = devices.filter((d) => d.isEmulator);
 			}
 			const abis = devices
