@@ -300,20 +300,30 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 
 		// Add other linker flags if specified
 		if (moduleDef.linkerFlags && Array.isArray(moduleDef.linkerFlags)) {
-			for (const flag of moduleDef.linkerFlags) {
-				// Use addBuildProperty with target name (productName) to set OTHER_LDFLAGS
-				const currentFlags = this.getBuildProperty("OTHER_LDFLAGS", targetName, project);
-				const flagsArray = currentFlags 
-					? (Array.isArray(currentFlags) ? currentFlags : [currentFlags])
-					: ['"$(inherited)"'];
-				
-				if (!flagsArray.includes(flag)) {
-					flagsArray.push(flag);
-				}
-				
-				project.addBuildProperty("OTHER_LDFLAGS", flagsArray, null, targetName);
-				this.$logger.trace(`Added linker flag: ${flag}`);
+			this.addLinkerFlags(moduleDef.linkerFlags, targetName, project);
+		}
+	}
+
+	/**
+	 * Add linker flags to a target's build settings
+	 */
+	private addLinkerFlags(
+		flags: string[],
+		targetName: string,
+		project: IXcode.project
+	): void {
+		for (const flag of flags) {
+			const currentFlags = this.getBuildProperty("OTHER_LDFLAGS", targetName, project);
+			const flagsArray = currentFlags 
+				? (Array.isArray(currentFlags) ? currentFlags : [currentFlags])
+				: ['"$(inherited)"'];
+			
+			if (!flagsArray.includes(flag)) {
+				flagsArray.push(flag);
 			}
+			
+			project.addBuildProperty("OTHER_LDFLAGS", flagsArray, null, targetName);
+			this.$logger.trace(`Added linker flag: ${flag}`);
 		}
 	}
 
