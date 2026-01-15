@@ -123,6 +123,50 @@ export interface IOSLocalSPMPackage extends IOSSPMPackageBase {
 export type IOSSPMPackage = IOSRemoteSPMPackage | IOSLocalSPMPackage;
 export type BundlerType = "webpack" | "rspack" | "vite";
 
+/**
+ * Watch app module configuration for xcframework modules
+ */
+interface IWatchAppModuleConfig {
+	/**
+	 * Name of the module (e.g., "Data")
+	 */
+	name: string;
+	/**
+	 * Path to the framework/xcframework containing the module
+	 */
+	path?: string;
+	/**
+	 * Whether to embed the framework (default: true)
+	 */
+	embed?: boolean;
+	/**
+	 * Additional header search paths for the module
+	 */
+	headerSearchPaths?: string[];
+	/**
+	 * Additional linker flags for the module
+	 */
+	linkerFlags?: string[];
+}
+
+/**
+ * Watch app configuration
+ */
+interface IWatchAppConfig {
+	/**
+	 * Swift Package Manager packages specific to watch app targets
+	 */
+	SPMPackages?: Array<IOSSPMPackage>;
+	/**
+	 * Module dependencies from xcframeworks (e.g., "Data" module)
+	 */
+	modules?: IWatchAppModuleConfig[];
+	/**
+	 * Reference to an existing target in the workspace to link with watch app
+	 */
+	workspaceTarget?: string;
+}
+
 interface INsConfigIOS extends INsConfigPlaform {
 	discardUncaughtJsExceptions?: boolean;
 	runtimePackageName?: string
@@ -132,6 +176,10 @@ interface INsConfigIOS extends INsConfigPlaform {
 	 * List packages to be included in the iOS build.
 	 */
 	SPMPackages?: Array<IOSSPMPackage>;
+	/**
+	 * Watch app configuration for deeper integration
+	 */
+	watchApp?: IWatchAppConfig;
 }
 
 interface INSConfigVisionOS extends INsConfigIOS {}
