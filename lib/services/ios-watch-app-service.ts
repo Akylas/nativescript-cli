@@ -43,15 +43,16 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			IOS_WATCHAPP_EXTENSION_FOLDER
 		);
 
-		if (!this.$fs.exists(appPath) || !this.$fs.exists(extensionPath)) {
+		// Check if watchapp exists - it's required
+		if (!this.$fs.exists(appPath)) {
 			return false;
 		}
 
+		// Extension is optional (Xcode 14+ supports single target)
+		const hasExtension = this.$fs.exists(extensionPath);
+
 		const appFolder = this.$iOSNativeTargetService.getTargetDirectories(
 			appPath
-		)[0];
-		const extensionFolder = this.$iOSNativeTargetService.getTargetDirectories(
-			extensionPath
 		)[0];
 
 		const project = new this.$xcode.project(pbxProjPath);
@@ -78,26 +79,37 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		targetUuids.push(watchApptarget.uuid);
 		targetNames.push(appFolder);
 
-		const watchExtensionTarget = this.$iOSNativeTargetService.addTargetToProject(
-			extensionPath,
-			extensionFolder,
-			IOSNativeTargetTypes.watchExtension,
-			project,
-			platformData,
-			watchApptarget.uuid
-		);
-		await this.configureTarget(
-			extensionFolder,
-			path.join(extensionPath, extensionFolder),
-			`${projectData.projectIdentifiers.ios}.${IOSWatchAppService.WATCH_APP_IDENTIFIER}.${IOSWatchAppService.WACTCH_EXTENSION_IDENTIFIER}`,
-			"extension.json",
-			watchExtensionTarget,
-			project,
-			projectData,
-			platformData
-		);
-		targetUuids.push(watchExtensionTarget.uuid);
-		targetNames.push(extensionFolder);
+		// Add extension target only if it exists (optional for Xcode 14+)
+		if (hasExtension) {
+			const extensionFolder = this.$iOSNativeTargetService.getTargetDirectories(
+				extensionPath
+			)[0];
+
+			const watchExtensionTarget = this.$iOSNativeTargetService.addTargetToProject(
+				extensionPath,
+				extensionFolder,
+				IOSNativeTargetTypes.watchExtension,
+				project,
+				platformData,
+				watchApptarget.uuid
+			);
+			await this.configureTarget(
+				extensionFolder,
+				path.join(extensionPath, extensionFolder),
+				`${projectData.projectIdentifiers.ios}.${IOSWatchAppService.WATCH_APP_IDENTIFIER}.${IOSWatchAppService.WACTCH_EXTENSION_IDENTIFIER}`,
+				"extension.json",
+				watchExtensionTarget,
+				project,
+				projectData,
+				platformData
+			);
+			targetUuids.push(watchExtensionTarget.uuid);
+			targetNames.push(extensionFolder);
+		} else {
+			this.$logger.trace(
+				"No watch extension found - using single target mode (Xcode 14+)"
+			);
+		}
 
 		this.$fs.writeFile(
 			pbxProjPath,
@@ -248,7 +260,7 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 	}
 
 	/**
-	 * Add module dependency to watch app target (e.g., "Data" module from xcframework)
+	 * Add module dependency to watch app target (e.g., "Data" module from xcframework or folder)
 	 */
 	private async addModuleDependency(
 		moduleDef: any,
@@ -265,36 +277,35 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 
 		this.$logger.trace(`Adding module dependency: ${moduleName} to ${targetName}`);
 
-		// Add framework if path is provided
-		if (modulePath && this.$fs.exists(modulePath)) {
-			const relativePath = path.relative(platformData.projectRoot, modulePath);
-			
-			// Add to frameworks build phase
-			project.addFramework(relativePath, {
-				target: target.uuid,
-				customFramework: true,
-				embed: moduleDef.embed !== false, // Default to true
-			});
-
-			// Add framework search paths
-			const frameworkDir = path.dirname(relativePath);
-			project.addBuildProperty(
-				"FRAMEWORK_SEARCH_PATHS",
-				`"$(inherited)" "${frameworkDir}"`,
-				null,
-				targetName
-			);
-
-			this.$logger.trace(`Added framework ${moduleName} at ${relativePath}`);
+		if (!modulePath || !this.$fs.exists(modulePath)) {
+			this.$logger.warn(`Module path not found: ${modulePath}`);
+			return;
 		}
 
-		// Add header search paths for module
+		const relativePath = path.relative(platformData.projectRoot, modulePath);
+		const stats = this.$fs.getFsStats(modulePath);
+
+		// Check if it's a framework/xcframework or a folder-based module
+		const isFramework = modulePath.endsWith('.framework') || modulePath.endsWith('.xcframework');
+		const isFolder = stats.isDirectory() && !isFramework;
+
+		if (isFramework) {
+			// Handle compiled frameworks (xcframework, framework)
+			this.addCompiledFramework(moduleDef, relativePath, targetName, target, project);
+		} else if (isFolder) {
+			// Handle folder-based modules with Info.plist (non-compiled)
+			await this.addFolderModule(moduleDef, modulePath, relativePath, targetName, target, project, projectData, platformData);
+		} else {
+			this.$logger.warn(`Unknown module type for: ${modulePath}`);
+		}
+
+		// Add header search paths for module (works for both types)
 		if (moduleDef.headerSearchPaths && Array.isArray(moduleDef.headerSearchPaths)) {
 			for (const headerPath of moduleDef.headerSearchPaths) {
 				const resolvedPath = path.resolve(projectData.projectDir, headerPath);
-				const relativePath = path.relative(platformData.projectRoot, resolvedPath);
-				project.addToHeaderSearchPaths(relativePath, targetName);
-				this.$logger.trace(`Added header search path: ${relativePath}`);
+				const relPath = path.relative(platformData.projectRoot, resolvedPath);
+				project.addToHeaderSearchPaths(relPath, targetName);
+				this.$logger.trace(`Added header search path: ${relPath}`);
 			}
 		}
 
@@ -302,6 +313,99 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		if (moduleDef.linkerFlags && Array.isArray(moduleDef.linkerFlags)) {
 			this.addLinkerFlags(moduleDef.linkerFlags, targetName, project);
 		}
+	}
+
+	/**
+	 * Add compiled framework (xcframework, framework) to target
+	 */
+	private addCompiledFramework(
+		moduleDef: any,
+		relativePath: string,
+		targetName: string,
+		target: IXcode.target,
+		project: IXcode.project
+	): void {
+		const moduleName = moduleDef.name;
+
+		// Add to frameworks build phase
+		project.addFramework(relativePath, {
+			target: target.uuid,
+			customFramework: true,
+			embed: moduleDef.embed !== false, // Default to true
+		});
+
+		// Add framework search paths
+		const frameworkDir = path.dirname(relativePath);
+		project.addBuildProperty(
+			"FRAMEWORK_SEARCH_PATHS",
+			`"$(inherited)" "${frameworkDir}"`,
+			null,
+			targetName
+		);
+
+		this.$logger.trace(`Added compiled framework ${moduleName} at ${relativePath}`);
+	}
+
+	/**
+	 * Add folder-based module (with Info.plist) to target as Xcode module
+	 */
+	private async addFolderModule(
+		moduleDef: any,
+		modulePath: string,
+		relativePath: string,
+		targetName: string,
+		target: IXcode.target,
+		project: IXcode.project,
+		projectData: IProjectData,
+		platformData: IPlatformData
+	): Promise<void> {
+		const moduleName = moduleDef.name || path.basename(modulePath);
+
+		// Check for Info.plist
+		const infoPlistPath = path.join(modulePath, 'Info.plist');
+		if (!this.$fs.exists(infoPlistPath)) {
+			this.$logger.warn(`No Info.plist found in module folder: ${modulePath}`);
+		}
+
+		// Add the folder to the project as a group
+		const files = this.$fs.readDirectory(modulePath)
+			.filter((fileName) => !fileName.startsWith("."))
+			.map((fileName) => path.join(modulePath, fileName));
+
+		if (files.length > 0) {
+			project.addPbxGroup(files, moduleName, modulePath, null, {
+				isMain: false,
+				target: target.uuid,
+				filesRelativeToProject: true,
+			});
+		}
+
+		// Add as a module by setting up header search paths
+		project.addToHeaderSearchPaths(relativePath, targetName);
+
+		// Set module map if specified or create default module configuration
+		if (moduleDef.moduleMap) {
+			const moduleMapPath = path.resolve(projectData.projectDir, moduleDef.moduleMap);
+			const relativeModuleMapPath = path.relative(platformData.projectRoot, moduleMapPath);
+			
+			project.addBuildProperty(
+				"MODULEMAP_FILE",
+				`"${relativeModuleMapPath}"`,
+				null,
+				targetName
+			);
+			this.$logger.trace(`Added module map: ${relativeModuleMapPath}`);
+		}
+
+		// Enable modules for this target if not already enabled
+		project.addBuildProperty(
+			"CLANG_ENABLE_MODULES",
+			"YES",
+			null,
+			targetName
+		);
+
+		this.$logger.trace(`Added folder-based module ${moduleName} at ${relativePath}`);
 	}
 
 	/**

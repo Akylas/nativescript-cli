@@ -124,19 +124,19 @@ export type IOSSPMPackage = IOSRemoteSPMPackage | IOSLocalSPMPackage;
 export type BundlerType = "webpack" | "rspack" | "vite";
 
 /**
- * Watch app module configuration for xcframework modules
+ * Watch app module configuration for xcframework modules or folder-based modules
  */
 interface IWatchAppModuleConfig {
 	/**
 	 * Name of the module (e.g., "Data")
 	 */
-	name: string;
+	name?: string;
 	/**
-	 * Path to the framework/xcframework containing the module
+	 * Path to the framework/xcframework or folder containing the module with Info.plist
 	 */
 	path?: string;
 	/**
-	 * Whether to embed the framework (default: true)
+	 * Whether to embed the framework (default: true, only applies to compiled frameworks)
 	 */
 	embed?: boolean;
 	/**
@@ -147,6 +147,10 @@ interface IWatchAppModuleConfig {
 	 * Additional linker flags for the module
 	 */
 	linkerFlags?: string[];
+	/**
+	 * Path to custom module.modulemap file (for folder-based modules)
+	 */
+	moduleMap?: string;
 }
 
 /**

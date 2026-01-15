@@ -8,7 +8,9 @@ The NativeScript CLI now supports advanced watchOS integration beyond basic sour
 
 1. Add Swift Package Manager (SPM) dependencies to watch app targets
 2. Integrate xcframework modules (like "Data" modules) that can be imported in your WatchApp
-3. Reuse existing targets from your xcworkspace (bonus feature)
+3. Integrate folder-based modules (non-compiled modules with Info.plist)
+4. Reuse existing targets from your xcworkspace (bonus feature)
+5. Support Xcode 14+ single target mode (watchapp without extension)
 
 ## Configuration
 
@@ -16,6 +18,7 @@ The NativeScript CLI now supports advanced watchOS integration beyond basic sour
 
 Place your watch app files in the following structure within your App_Resources:
 
+#### Traditional Structure (Pre-Xcode 14)
 ```
 App_Resources/
   iOS/  (or visionOS/)
@@ -28,6 +31,18 @@ App_Resources/
         extension.json
         ... (watch extension sources)
 ```
+
+#### Xcode 14+ Single Target Structure
+```
+App_Resources/
+  iOS/  (or visionOS/)
+    watchapp/
+      YourWatchApp/
+        watchapp.json
+        ... (watch app sources and resources)
+```
+
+**Note**: From Xcode 14+, the `watchextension` folder is optional. If only `watchapp` exists, the CLI will create a single target configuration suitable for modern watchOS development.
 
 ### Enhanced Configuration
 
@@ -57,9 +72,13 @@ export default {
 }
 ```
 
-#### 2. Module Dependencies (xcframework modules)
+#### 2. Module Dependencies
 
-If your watch app needs to import modules from xcframeworks (e.g., `import Data`), configure them in your watch app's `watchapp.json` or `extension.json`:
+The CLI supports two types of modules:
+
+##### A. Compiled Frameworks (xcframework, framework)
+
+If your watch app needs to import modules from compiled frameworks (e.g., `import Data`), configure them in your watch app's `watchapp.json` or `extension.json`:
 
 **watchapp.json example:**
 ```json
@@ -72,7 +91,7 @@ If your watch app needs to import modules from xcframeworks (e.g., `import Data`
       "path": "../../../Frameworks/Data.xcframework",
       "embed": true,
       "headerSearchPaths": [
-        "../../../Frameworks/Data.xcframework/ios-arm64"
+        "../../../Frameworks/Data.xcframework/watchos-arm64"
       ],
       "linkerFlags": ["-ObjC"]
     }
@@ -80,13 +99,51 @@ If your watch app needs to import modules from xcframeworks (e.g., `import Data`
 }
 ```
 
+##### B. Folder-Based Modules (Non-Compiled)
+
+For folder-based modules that contain an Info.plist (non-compiled modules), the CLI will automatically detect them and configure them as Xcode modules:
+
+**watchapp.json example:**
+```json
+{
+  "frameworks": ["WatchKit.framework"],
+  "modules": [
+    {
+      "path": "Modules/MyModule",
+      "headerSearchPaths": ["Modules/MyModule/include"],
+      "moduleMap": "Modules/MyModule/module.modulemap"
+    }
+  ]
+}
+```
+
+The folder should have this structure:
+```
+Modules/
+  MyModule/
+    Info.plist          # Required
+    Headers/
+      MyModule.h
+    module.modulemap    # Optional, can be specified in config
+    Sources/
+      MyModule.m
+```
+
 **Module Configuration Options:**
 
-- `name` (required): Name of the module (e.g., "Data")
-- `path` (optional): Path to the framework/xcframework containing the module (relative to project root)
+For **compiled frameworks** (xcframework, framework):
+- `name` (optional): Name of the module (e.g., "Data")
+- `path` (required): Path to the framework/xcframework (relative to project root)
 - `embed` (optional): Whether to embed the framework (default: true)
 - `headerSearchPaths` (optional): Additional header search paths for the module
 - `linkerFlags` (optional): Additional linker flags for the module
+
+For **folder-based modules**:
+- `name` (optional): Name of the module (defaults to folder name)
+- `path` (required): Path to the folder containing Info.plist (relative to project root)
+- `headerSearchPaths` (optional): Additional header search paths for the module
+- `linkerFlags` (optional): Additional linker flags for the module
+- `moduleMap` (optional): Path to custom module.modulemap file
 
 #### 3. Workspace Target Reference
 
