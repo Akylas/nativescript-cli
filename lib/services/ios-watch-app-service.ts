@@ -278,7 +278,7 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		this.$logger.trace(`Adding module dependency: ${moduleName} to ${targetName}`);
 
 		if (!modulePath || !this.$fs.exists(modulePath)) {
-			this.$logger.warn(`Module path not found: ${modulePath}`);
+			this.$logger.warn(`Module path not found, skipping module: ${modulePath}`);
 			return;
 		}
 
