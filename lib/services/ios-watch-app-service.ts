@@ -507,20 +507,6 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 				);
 			}
 		}
-
-		// Handle existing workspace target references
-		if (config.workspaceTarget) {
-			this.$logger.trace(
-				`Configuring workspace target reference: ${config.workspaceTarget} for ${targetName}`
-			);
-			this.linkWorkspaceTarget(
-				config.workspaceTarget,
-				targetName,
-				target,
-				project,
-				platformData
-			);
-		}
 	}
 
 	/**
@@ -716,6 +702,15 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			this.$logger.warn(`Unknown module type for: ${modulePath}`);
 		}
 
+		// Add system framework dependencies if specified
+		if (moduleDef.frameworks && Array.isArray(moduleDef.frameworks)) {
+			this.$logger.trace(`Adding ${moduleDef.frameworks.length} framework(s) for module ${moduleName}`);
+			for (const framework of moduleDef.frameworks) {
+				project.addFramework(framework, { target: target.uuid });
+				this.$logger.trace(`Added framework dependency: ${framework}`);
+			}
+		}
+
 		// Add header search paths for module (works for both types)
 		if (moduleDef.headerSearchPaths && Array.isArray(moduleDef.headerSearchPaths)) {
 			for (const headerPath of moduleDef.headerSearchPaths) {
@@ -877,56 +872,6 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		}
 
 		return null;
-	}
-
-	/**
-	 * Link existing workspace target to watch app
-	 */
-	private linkWorkspaceTarget(
-		workspaceTargetName: string,
-		targetName: string,
-		target: IXcode.target,
-		project: IXcode.project,
-		platformData: IPlatformData
-	): void {
-		this.$logger.trace(
-			`Linking workspace target ${workspaceTargetName} to ${targetName}`
-		);
-
-		// Find the existing target in the project
-		const projectHash = (project as any).hash;
-		if (!projectHash) {
-			this.$logger.warn("Could not access project hash");
-			return;
-		}
-
-		const targets = projectHash.project.objects.PBXNativeTarget;
-		let existingTargetUuid: string = null;
-
-		for (const uuid in targets) {
-			if (targets[uuid] && targets[uuid].name === workspaceTargetName) {
-				existingTargetUuid = uuid;
-				break;
-			}
-		}
-
-		if (existingTargetUuid) {
-			// Add target dependency using the xcode project method
-			try {
-				(project as any).addTargetDependency(target.uuid, [existingTargetUuid]);
-				this.$logger.trace(
-					`Successfully linked workspace target ${workspaceTargetName}`
-				);
-			} catch (err) {
-				this.$logger.warn(
-					`Error linking workspace target ${workspaceTargetName}: ${err.message}`
-				);
-			}
-		} else {
-			this.$logger.warn(
-				`Could not find workspace target: ${workspaceTargetName}`
-			);
-		}
 	}
 
 	/**
