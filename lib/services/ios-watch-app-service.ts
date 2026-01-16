@@ -121,6 +121,16 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			pbxProjPath
 		);
 
+		// Add resources to watch targets (fonts, assets, files, etc.)
+		await this.addWatchAppResources(
+			watchAppFolderPath,
+			targetUuids,
+			targetNames,
+			project,
+			platformData,
+			pbxProjPath
+		);
+
 		// Apply SPM packages to watch targets if configured
 		await this.applySPMPackagesToWatchTargets(
 			targetNames,
@@ -129,6 +139,117 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		);
 
 		return true;
+	}
+
+	/**
+	 * Add resources from the watch app folder to the watch targets
+	 */
+	private async addWatchAppResources(
+		watchAppFolderPath: string,
+		targetUuids: string[],
+		targetNames: string[],
+		project: IXcode.project,
+		platformData: IPlatformData,
+		pbxProjPath: string
+	): Promise<void> {
+		try {
+			// Resource directories to scan
+			const resourceDirs = [
+				IOS_WATCHAPP_FOLDER,
+				IOS_WATCHAPP_EXTENSION_FOLDER,
+			];
+
+			for (let i = 0; i < resourceDirs.length && i < targetUuids.length; i++) {
+				const resourceDir = resourceDirs[i];
+				const resourcePath = path.join(watchAppFolderPath, resourceDir);
+
+				if (!this.$fs.exists(resourcePath)) {
+					continue;
+				}
+
+				const targetUuid = targetUuids[i];
+				const targetName = targetNames[i];
+
+				// Scan for resource files (fonts, assets, images, etc.)
+				this.addResourcesFromDirectory(
+					resourcePath,
+					targetUuid,
+					targetName,
+					project,
+					platformData
+				);
+			}
+
+			// Write changes if any resources were added
+			this.$fs.writeFile(
+				pbxProjPath,
+				project.writeSync({ omitEmptyValues: true })
+			);
+
+			this.$logger.trace("Watch app resources added successfully");
+		} catch (err) {
+			this.$logger.warn(`Error adding watch app resources: ${err.message}`);
+		}
+	}
+
+	/**
+	 * Recursively add resources from a directory to a target
+	 */
+	private addResourcesFromDirectory(
+		dirPath: string,
+		targetUuid: string,
+		targetName: string,
+		project: IXcode.project,
+		platformData: IPlatformData
+	): void {
+		const resourceExtensions = [
+			'.png', '.jpg', '.jpeg', '.gif', '.svg', '.pdf',  // Images
+			'.ttf', '.otf', '.woff', '.woff2',                 // Fonts
+			'.xcassets',                                        // Asset catalogs
+			'.storyboard', '.xib',                             // Interface files
+			'.strings', '.stringsdict',                        // Localization
+			'.json', '.xml', '.plist',                         // Data files
+			'.m4a', '.mp3', '.wav', '.caf',                    // Audio
+			'.mp4', '.mov',                                     // Video
+			'.bundle',                                          // Resource bundles
+		];
+
+		const items = this.$fs.readDirectory(dirPath);
+
+		for (const item of items) {
+			// Skip hidden files and certain directories
+			if (item.startsWith('.') || item === 'node_modules') {
+				continue;
+			}
+
+			const itemPath = path.join(dirPath, item);
+			const stats = this.$fs.getFsStats(itemPath);
+			const relativePath = path.relative(platformData.projectRoot, itemPath);
+
+			if (stats.isDirectory()) {
+				// Special handling for .xcassets, .bundle, and other resource bundles
+				if (item.endsWith('.xcassets') || item.endsWith('.bundle')) {
+					this.$logger.trace(`Adding resource bundle: ${relativePath}`);
+					(project as any).addResourceFile(relativePath, { target: targetUuid });
+				} else {
+					// Recursively scan subdirectories
+					this.addResourcesFromDirectory(
+						itemPath,
+						targetUuid,
+						targetName,
+						project,
+						platformData
+					);
+				}
+			} else {
+				// Check if file is a resource by extension
+				const ext = path.extname(item).toLowerCase();
+				if (resourceExtensions.includes(ext)) {
+					this.$logger.trace(`Adding resource file: ${relativePath}`);
+					(project as any).addResourceFile(relativePath, { target: targetUuid });
+				}
+			}
+		}
 	}
 
 	public removeWatchApp({ pbxProjPath }: IRemoveWatchAppOptions): void {
