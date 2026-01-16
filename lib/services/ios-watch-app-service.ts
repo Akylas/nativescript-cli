@@ -121,6 +121,16 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			pbxProjPath
 		);
 
+		// Add source files to watch targets (swift, h, cpp, etc.)
+		await this.addWatchAppSourceFiles(
+			watchAppFolderPath,
+			targetUuids,
+			targetNames,
+			project,
+			platformData,
+			pbxProjPath
+		);
+
 		// Add resources to watch targets (fonts, assets, files, etc.)
 		await this.addWatchAppResources(
 			watchAppFolderPath,
@@ -139,6 +149,105 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		);
 
 		return true;
+	}
+
+	/**
+	 * Add source files from the watch app folder to the watch targets
+	 */
+	private async addWatchAppSourceFiles(
+		watchAppFolderPath: string,
+		targetUuids: string[],
+		targetNames: string[],
+		project: IXcode.project,
+		platformData: IPlatformData,
+		pbxProjPath: string
+	): Promise<void> {
+		try {
+			// Source directories to scan
+			const sourceDirs = [
+				IOS_WATCHAPP_FOLDER,
+				IOS_WATCHAPP_EXTENSION_FOLDER,
+			];
+
+			for (let i = 0; i < sourceDirs.length && i < targetUuids.length; i++) {
+				const sourceDir = sourceDirs[i];
+				const sourcePath = path.join(watchAppFolderPath, sourceDir);
+
+				if (!this.$fs.exists(sourcePath)) {
+					continue;
+				}
+
+				const targetUuid = targetUuids[i];
+				const targetName = targetNames[i];
+
+				// Scan for source files (swift, h, m, mm, cpp, c)
+				this.addSourceFilesFromDirectory(
+					sourcePath,
+					targetUuid,
+					targetName,
+					project,
+					platformData
+				);
+			}
+
+			// Write changes if any source files were added
+			this.$fs.writeFile(
+				pbxProjPath,
+				project.writeSync({ omitEmptyValues: true })
+			);
+
+			this.$logger.trace("Watch app source files added successfully");
+		} catch (err) {
+			this.$logger.warn(`Error adding watch app source files: ${err.message}`);
+		}
+	}
+
+	/**
+	 * Recursively add source files from a directory to a target
+	 */
+	private addSourceFilesFromDirectory(
+		dirPath: string,
+		targetUuid: string,
+		targetName: string,
+		project: IXcode.project,
+		platformData: IPlatformData
+	): void {
+		const sourceExtensions = [
+			'.swift', '.m', '.mm', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp'
+		];
+
+		const items = this.$fs.readDirectory(dirPath);
+
+		for (const item of items) {
+			// Skip hidden files, config files, and certain directories
+			if (item.startsWith('.') || item === 'node_modules' || 
+			    item.endsWith('.json') || item.endsWith('.plist')) {
+				continue;
+			}
+
+			const itemPath = path.join(dirPath, item);
+			const stats = this.$fs.getFsStats(itemPath);
+			const relativePath = path.relative(platformData.projectRoot, itemPath);
+
+			if (stats.isDirectory()) {
+				// Recursively scan subdirectories for source files
+				this.addSourceFilesFromDirectory(
+					itemPath,
+					targetUuid,
+					targetName,
+					project,
+					platformData
+				);
+			} else {
+				// Check if file is a source file by extension
+				const ext = path.extname(item).toLowerCase();
+				if (sourceExtensions.includes(ext)) {
+					this.$logger.trace(`Adding source file: ${relativePath}`);
+					// Add source file to the target
+					(project as any).addSourceFile(relativePath, null, targetUuid);
+				}
+			}
+		}
 	}
 
 	/**
@@ -382,6 +491,23 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			}
 		}
 
+		// Handle custom source files
+		if (config.src && Array.isArray(config.src)) {
+			this.$logger.trace(
+				`Processing ${config.src.length} custom source file(s) for watch target: ${targetName}`
+			);
+			for (const srcPath of config.src) {
+				this.addCustomSourceFile(
+					srcPath,
+					target.uuid,
+					targetName,
+					project,
+					projectData,
+					platformData
+				);
+			}
+		}
+
 		// Handle existing workspace target references
 		if (config.workspaceTarget) {
 			this.$logger.trace(
@@ -436,6 +562,84 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			// Add single file as a resource
 			this.$logger.trace(`Adding custom resource file: ${relativePath}`);
 			(project as any).addResourceFile(relativePath, { target: targetUuid });
+		}
+	}
+
+	/**
+	 * Add custom source file (file or folder) to watch app target
+	 */
+	private addCustomSourceFile(
+		srcPath: string,
+		targetUuid: string,
+		targetName: string,
+		project: IXcode.project,
+		projectData: IProjectData,
+		platformData: IPlatformData
+	): void {
+		// Resolve path relative to project directory
+		const resolvedPath = path.resolve(projectData.projectDir, srcPath);
+
+		if (!this.$fs.exists(resolvedPath)) {
+			this.$logger.warn(
+				`Custom source file/folder not found, skipping: ${srcPath}`
+			);
+			return;
+		}
+
+		const relativePath = path.relative(platformData.projectRoot, resolvedPath);
+		const stats = this.$fs.getFsStats(resolvedPath);
+
+		if (stats.isDirectory()) {
+			// Add all source files from directory
+			this.$logger.trace(
+				`Adding custom source directory: ${relativePath}`
+			);
+			this.addAllSourceFilesFromDirectory(
+				resolvedPath,
+				targetUuid,
+				project,
+				platformData
+			);
+		} else {
+			// Add single source file
+			this.$logger.trace(`Adding custom source file: ${relativePath}`);
+			(project as any).addSourceFile(relativePath, null, targetUuid);
+		}
+	}
+
+	/**
+	 * Add all source files from a directory (non-recursively) to target
+	 */
+	private addAllSourceFilesFromDirectory(
+		dirPath: string,
+		targetUuid: string,
+		project: IXcode.project,
+		platformData: IPlatformData
+	): void {
+		const sourceExtensions = [
+			'.swift', '.m', '.mm', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp'
+		];
+
+		const items = this.$fs.readDirectory(dirPath);
+
+		for (const item of items) {
+			// Skip hidden files
+			if (item.startsWith('.')) {
+				continue;
+			}
+
+			const itemPath = path.join(dirPath, item);
+			const stats = this.$fs.getFsStats(itemPath);
+			const relativePath = path.relative(platformData.projectRoot, itemPath);
+
+			if (!stats.isDirectory()) {
+				// Check if file is a source file by extension
+				const ext = path.extname(item).toLowerCase();
+				if (sourceExtensions.includes(ext)) {
+					this.$logger.trace(`Adding source file: ${relativePath}`);
+					(project as any).addSourceFile(relativePath, null, targetUuid);
+				}
+			}
 		}
 	}
 
