@@ -252,6 +252,10 @@ export class Options {
 			jar: { type: OptionType.String, hasSensitiveValue: true },
 			aar: { type: OptionType.String, hasSensitiveValue: true },
 			filter: { type: OptionType.String, hasSensitiveValue: true },
+			lookupPath: { type: OptionType.String, hasSensitiveValue: true },
+			dtsGeneratorPath: { type: OptionType.String, hasSensitiveValue: true },
+			super: { type: OptionType.String, hasSensitiveValue: true },
+			skipDeclarations: { type: OptionType.Boolean, hasSensitiveValue: false },
 			git: {
 				type: OptionType.Boolean,
 				hasSensitiveValue: false,

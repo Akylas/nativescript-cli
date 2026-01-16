@@ -596,6 +596,10 @@ interface ITypingsOptions {
 	jar: string;
 	aar: string;
 	filter: string;
+	dtsGeneratorPath: string;
+	lookupPath: string;
+	super: string;
+	skipDeclarations: boolean;
 }
 
 interface IOptions

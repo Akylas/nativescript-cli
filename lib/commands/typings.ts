@@ -58,7 +58,7 @@ export class TypingsCommand implements ICommand {
 		const gradleHome = path.resolve(
 			process.env.GRADLE_USER_HOME ?? path.join(homedir(), `/.gradle`)
 		);
-		const gradleFiles = path.resolve(gradleHome, "caches/modules-2/files-2.1/");
+		const gradleFiles = this.$options.lookupPath ?? path.resolve(gradleHome, "caches/modules-2/files-2.1/");
 
 		if (!this.$fs.exists(gradleFiles)) {
 			this.$logger.warn("No gradle files found");
@@ -160,7 +160,7 @@ export class TypingsCommand implements ICommand {
 			path.resolve(this.$projectData.projectDir, "typings", "android")
 		);
 
-		const dtsGeneratorPath = path.resolve(
+		const dtsGeneratorPath = this.$options.dtsGeneratorPath ?? path.resolve(
 			this.$projectData.projectDir,
 			this.$projectData.getBuildRelativeDirectoryPath(),
 			"android",
@@ -168,13 +168,22 @@ export class TypingsCommand implements ICommand {
 			"dts-generator.jar"
 		);
 		if (!this.$fs.exists(dtsGeneratorPath)) {
-			this.$logger.warn("No platforms folder found, preparing project now...");
-			await this.$childProcess.spawnFromEvent(
-				this.$hostInfo.isWindows ? "ns.cmd" : "ns",
-				["prepare", "android"],
-				"exit",
-				{ stdio: "inherit", shell: this.$hostInfo.isWindows }
-			);
+			if (this.$options.dtsGeneratorPath) {
+				this.$logger.warn(
+					[
+						`dts-generator.jar not found at ${this.$options.dtsGeneratorPath} used with --dtsGeneratorPath`,
+					].join("\n")
+				);
+				return false;
+			} else {
+				this.$logger.warn("No platforms folder found, preparing project now...");
+				await this.$childProcess.spawnFromEvent(
+					this.$hostInfo.isWindows ? "ns.cmd" : "ns",
+					["prepare", "android"],
+					"exit",
+					{ stdio: "inherit", shell: this.$hostInfo.isWindows }
+				);
+			}
 		}
 
 		const asArray = (input: string | string[]) => {
@@ -194,12 +203,13 @@ export class TypingsCommand implements ICommand {
 			...asArray(this.$options.aar),
 			...paths,
 		];
-
 		await this.$childProcess.spawnFromEvent(
 			"java",
 			[
 				"-jar",
 				dtsGeneratorPath,
+				...(this.$options.skipDeclarations?["--skip-declarations"]:[]),
+				...(this.$options.super?["-super", this.$options.super]:[]),
 				"-input",
 				...inputs,
 				"-output",
