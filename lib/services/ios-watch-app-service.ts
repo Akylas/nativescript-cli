@@ -365,6 +365,23 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			}
 		}
 
+		// Handle custom resources
+		if (config.resources && Array.isArray(config.resources)) {
+			this.$logger.trace(
+				`Processing ${config.resources.length} custom resource(s) for watch target: ${targetName}`
+			);
+			for (const resourcePath of config.resources) {
+				this.addCustomResource(
+					resourcePath,
+					target.uuid,
+					targetName,
+					project,
+					projectData,
+					platformData
+				);
+			}
+		}
+
 		// Handle existing workspace target references
 		if (config.workspaceTarget) {
 			this.$logger.trace(
@@ -377,6 +394,81 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 				project,
 				platformData
 			);
+		}
+	}
+
+	/**
+	 * Add custom resource (file or folder) to watch app target
+	 */
+	private addCustomResource(
+		resourcePath: string,
+		targetUuid: string,
+		targetName: string,
+		project: IXcode.project,
+		projectData: IProjectData,
+		platformData: IPlatformData
+	): void {
+		// Resolve path relative to project directory
+		const resolvedPath = path.resolve(projectData.projectDir, resourcePath);
+
+		if (!this.$fs.exists(resolvedPath)) {
+			this.$logger.warn(
+				`Custom resource not found, skipping: ${resourcePath}`
+			);
+			return;
+		}
+
+		const relativePath = path.relative(platformData.projectRoot, resolvedPath);
+		const stats = this.$fs.getFsStats(resolvedPath);
+
+		if (stats.isDirectory()) {
+			// Add entire directory as a resource
+			this.$logger.trace(
+				`Adding custom resource directory: ${relativePath}`
+			);
+			this.addAllFilesFromDirectory(
+				resolvedPath,
+				targetUuid,
+				project,
+				platformData
+			);
+		} else {
+			// Add single file as a resource
+			this.$logger.trace(`Adding custom resource file: ${relativePath}`);
+			(project as any).addResourceFile(relativePath, { target: targetUuid });
+		}
+	}
+
+	/**
+	 * Add all files from a directory (non-recursively) as resources
+	 */
+	private addAllFilesFromDirectory(
+		dirPath: string,
+		targetUuid: string,
+		project: IXcode.project,
+		platformData: IPlatformData
+	): void {
+		const items = this.$fs.readDirectory(dirPath);
+
+		for (const item of items) {
+			// Skip hidden files
+			if (item.startsWith('.')) {
+				continue;
+			}
+
+			const itemPath = path.join(dirPath, item);
+			const stats = this.$fs.getFsStats(itemPath);
+			const relativePath = path.relative(platformData.projectRoot, itemPath);
+
+			if (stats.isDirectory()) {
+				// For directories, add them as bundles (e.g., .xcassets, .bundle)
+				this.$logger.trace(`Adding resource bundle: ${relativePath}`);
+				(project as any).addResourceFile(relativePath, { target: targetUuid });
+			} else {
+				// Add individual files
+				this.$logger.trace(`Adding resource file: ${relativePath}`);
+				(project as any).addResourceFile(relativePath, { target: targetUuid });
+			}
 		}
 	}
 
