@@ -26,7 +26,7 @@ export class Logger implements ILogger {
 	constructor(private $config: Config.IConfig) {
 		this.defaultLogLevel = this.$config.DEBUG
 			? LoggerLevel.TRACE
-			: LoggerLevel.WARN;
+			: LoggerLevel.INFO;
 	}
 
 	@cache()
@@ -136,8 +136,8 @@ export class Logger implements ILogger {
 		const opts = {
 			unescape: true,
 			link: color.red,
-			strong: color.green.bold,
-			firstHeading: color.blue.bold,
+			strong: (str: string) => color.styleText(["green", "bold"], str),
+			firstHeading: (str: string) => color.styleText(["blue", "bold"], str),
 			tableOptions: {
 				chars: { mid: "", "left-mid": "", "mid-mid": "", "right-mid": "" },
 				style: {

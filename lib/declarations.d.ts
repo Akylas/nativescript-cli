@@ -594,6 +594,7 @@ interface IIOSOptions extends IEmbedOptions {}
 
 interface ITypingsOptions {
 	jar: string;
+	dtsGeneratorPath: string;
 	aar: string;
 	filter: string;
 	dtsGeneratorPath: string;

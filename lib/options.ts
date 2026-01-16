@@ -251,6 +251,7 @@ export class Options {
 			appleSessionBase64: { type: OptionType.String, hasSensitiveValue: true },
 			jar: { type: OptionType.String, hasSensitiveValue: true },
 			aar: { type: OptionType.String, hasSensitiveValue: true },
+			dtsGeneratorPath: { type: OptionType.String, hasSensitiveValue: true },
 			filter: { type: OptionType.String, hasSensitiveValue: true },
 			lookupPath: { type: OptionType.String, hasSensitiveValue: true },
 			dtsGeneratorPath: { type: OptionType.String, hasSensitiveValue: true },

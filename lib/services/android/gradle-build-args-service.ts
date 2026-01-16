@@ -6,6 +6,7 @@ import { IAndroidBuildData } from "../../definitions/build";
 import { IHooksService, IAnalyticsService } from "../../common/declarations";
 import { injector } from "../../common/yok";
 import { IProjectData } from "../../definitions/project";
+import { LoggerLevel } from "../../constants";
 
 export class GradleBuildArgsService implements IGradleBuildArgsService {
 	constructor(
@@ -80,7 +81,11 @@ export class GradleBuildArgsService implements IGradleBuildArgsService {
 
 		if (buildData.release) {
 			args.push(
-				"-Prelease",
+				"-Prelease"
+			);
+		}
+		if (buildData.release || buildData.keyStorePath) {
+			args.push(
 				`-PksPath=${path.resolve(buildData.keyStorePath)}`,
 				`-Palias=${buildData.keyStoreAlias}`,
 				`-Ppassword=${buildData.keyStoreAliasPassword}`,
@@ -95,9 +100,9 @@ export class GradleBuildArgsService implements IGradleBuildArgsService {
 		const args = [];
 
 		const logLevel = this.$logger.getLevel();
-		if (logLevel === "TRACE") {
+		if (logLevel === LoggerLevel.TRACE) {
 			args.push("--debug");
-		} else if (logLevel === "INFO") {
+		} else if (logLevel === LoggerLevel.DEBUG) {
 			args.push("--info");
 		}
 
