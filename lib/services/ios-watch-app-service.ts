@@ -21,6 +21,9 @@ import { MobileProject } from "@nstudio/trapezedev-project";
 export class IOSWatchAppService implements IIOSWatchAppService {
 	private static WATCH_APP_IDENTIFIER = "watchkitapp";
 	private static WACTCH_EXTENSION_IDENTIFIER = "watchkitextension";
+	private static CONFIG_FILE_WATCHAPP = "watchapp.json";
+	private static CONFIG_FILE_EXTENSION = "extension.json";
+
 	constructor(
 		protected $fs: IFileSystem,
 		protected $pbxprojDomXcode: IPbxprojDomXcode,
@@ -303,6 +306,7 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 
 	/**
 	 * Recursively add resources from a directory to a target
+	 * Requirement 6: Exclude watchapp.json and extension.json config files
 	 */
 	private addResourcesFromDirectory(
 		dirPath: string,
@@ -328,6 +332,11 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		for (const item of items) {
 			// Skip hidden files and certain directories
 			if (item.startsWith('.') || item === 'node_modules') {
+				continue;
+			}
+
+			// Requirement 6: Exclude config files from resources
+			if (item === IOSWatchAppService.CONFIG_FILE_WATCHAPP || item === IOSWatchAppService.CONFIG_FILE_EXTENSION) {
 				continue;
 			}
 
@@ -457,6 +466,18 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 
 		const config = this.$fs.readJson(configPath) || {};
 
+		// Requirement 1: Support basedir for all paths
+		let basedir: string | undefined;
+		if (config.basedir) {
+			basedir = path.resolve(path.dirname(configPath), config.basedir);
+			if (!this.$fs.exists(basedir)) {
+				this.$logger.warn(`Basedir not found, using config directory: ${basedir}`);
+				basedir = path.dirname(configPath);
+			}
+		} else {
+			basedir = path.dirname(configPath);
+		}
+
 		// Handle module dependencies (e.g., "Data" module from xcframework)
 		if (config.modules && Array.isArray(config.modules)) {
 			this.$logger.trace(
@@ -469,7 +490,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 					target,
 					project,
 					projectData,
-					platformData
+					platformData,
+					basedir
 				);
 			}
 		}
@@ -486,7 +508,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 					targetName,
 					project,
 					projectData,
-					platformData
+					platformData,
+					basedir
 				);
 			}
 		}
@@ -503,7 +526,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 					targetName,
 					project,
 					projectData,
-					platformData
+					platformData,
+					basedir
 				);
 			}
 		}
@@ -511,6 +535,7 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 
 	/**
 	 * Add custom resource (file or folder) to watch app target
+	 * Requirement 7: Recursively add files when resources array contains folders
 	 */
 	private addCustomResource(
 		resourcePath: string,
@@ -518,10 +543,10 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		targetName: string,
 		project: IXcode.project,
 		projectData: IProjectData,
-		platformData: IPlatformData
+		platformData: IPlatformData,
+		basedir?: string
 	): void {
-		// Resolve path relative to project directory
-		const resolvedPath = path.resolve(projectData.projectDir, resourcePath);
+		const resolvedPath = this.resolvePathWithBasedir(resourcePath, basedir, projectData.projectDir);
 
 		if (!this.$fs.exists(resolvedPath)) {
 			this.$logger.warn(
@@ -534,11 +559,11 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		const stats = this.$fs.getFsStats(resolvedPath);
 
 		if (stats.isDirectory()) {
-			// Add entire directory as a resource
+			// Requirement 7: Recursively add every file in the folder
 			this.$logger.trace(
-				`Adding custom resource directory: ${relativePath}`
+				`Recursively adding files from resource directory: ${resourcePath}`
 			);
-			this.addAllFilesFromDirectory(
+			this.addAllFilesRecursively(
 				resolvedPath,
 				targetUuid,
 				project,
@@ -560,10 +585,10 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		targetName: string,
 		project: IXcode.project,
 		projectData: IProjectData,
-		platformData: IPlatformData
+		platformData: IPlatformData,
+		basedir?: string
 	): void {
-		// Resolve path relative to project directory
-		const resolvedPath = path.resolve(projectData.projectDir, srcPath);
+		const resolvedPath = this.resolvePathWithBasedir(srcPath, basedir, projectData.projectDir);
 
 		if (!this.$fs.exists(resolvedPath)) {
 			this.$logger.warn(
@@ -591,6 +616,19 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			this.$logger.trace(`Adding custom source file: ${relativePath}`);
 			(project as any).addSourceFile(relativePath, null, targetUuid);
 		}
+	}
+
+	/**
+	 * Helper method to resolve paths with optional basedir support
+	 */
+	private resolvePathWithBasedir(
+		relativePath: string,
+		basedir: string | undefined,
+		fallbackDir: string
+	): string {
+		return basedir
+			? path.resolve(basedir, relativePath)
+			: path.resolve(fallbackDir, relativePath);
 	}
 
 	/**
@@ -630,9 +668,10 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 	}
 
 	/**
-	 * Add all files from a directory (non-recursively) as resources
+	 * Recursively add all files from a directory as resources
+	 * Requirement 7: Used for resources array with folders
 	 */
-	private addAllFilesFromDirectory(
+	private addAllFilesRecursively(
 		dirPath: string,
 		targetUuid: string,
 		project: IXcode.project,
@@ -641,8 +680,10 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		const items = this.$fs.readDirectory(dirPath);
 
 		for (const item of items) {
-			// Skip hidden files
-			if (item.startsWith('.')) {
+			// Skip hidden files and config files
+			if (item.startsWith('.') || 
+			    item === IOSWatchAppService.CONFIG_FILE_WATCHAPP || 
+			    item === IOSWatchAppService.CONFIG_FILE_EXTENSION) {
 				continue;
 			}
 
@@ -651,11 +692,16 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			const relativePath = path.relative(platformData.projectRoot, itemPath);
 
 			if (stats.isDirectory()) {
-				// For directories, add them as bundles (e.g., .xcassets, .bundle)
-				this.$logger.trace(`Adding resource bundle: ${relativePath}`);
-				(project as any).addResourceFile(relativePath, { target: targetUuid });
+				// Special handling for .xcassets, .bundle - add as bundles, not recursively
+				if (item.endsWith('.xcassets') || item.endsWith('.bundle')) {
+					this.$logger.trace(`Adding resource bundle: ${relativePath}`);
+					(project as any).addResourceFile(relativePath, { target: targetUuid });
+				} else {
+					// Recursively process subdirectories
+					this.addAllFilesRecursively(itemPath, targetUuid, project, platformData);
+				}
 			} else {
-				// Add individual files
+				// Add individual file
 				this.$logger.trace(`Adding resource file: ${relativePath}`);
 				(project as any).addResourceFile(relativePath, { target: targetUuid });
 			}
@@ -664,6 +710,7 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 
 	/**
 	 * Add module dependency to watch app target (e.g., "Data" module from xcframework or folder)
+	 * Requirement 5: Support Swift Package modules (Package.swift with Sources folder)
 	 */
 	private async addModuleDependency(
 		moduleDef: any,
@@ -671,11 +718,12 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		target: IXcode.target,
 		project: IXcode.project,
 		projectData: IProjectData,
-		platformData: IPlatformData
+		platformData: IPlatformData,
+		basedir?: string
 	): Promise<void> {
 		const moduleName = moduleDef.name;
 		const modulePath = moduleDef.path
-			? path.resolve(projectData.projectDir, moduleDef.path)
+			? this.resolvePathWithBasedir(moduleDef.path, basedir, projectData.projectDir)
 			: null;
 
 		this.$logger.trace(`Adding module dependency: ${moduleName} to ${targetName}`);
@@ -692,9 +740,17 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		const isFramework = modulePath.endsWith('.framework') || modulePath.endsWith('.xcframework');
 		const isFolder = stats.isDirectory() && !isFramework;
 
+		// Requirement 5: Check for Swift Package (has Package.swift and Sources folder)
+		const hasPackageSwift = isFolder && this.$fs.exists(path.join(modulePath, 'Package.swift'));
+		const hasSourcesDir = hasPackageSwift && this.$fs.exists(path.join(modulePath, 'Sources'));
+		const isSwiftPackage = hasPackageSwift && hasSourcesDir;
+
 		if (isFramework) {
 			// Handle compiled frameworks (xcframework, framework)
 			this.addCompiledFramework(moduleDef, relativePath, targetName, target, project);
+		} else if (isSwiftPackage) {
+			// Requirement 5: Handle Swift Package modules
+			await this.addSwiftPackageModule(moduleDef, modulePath, relativePath, targetName, target, project, projectData, platformData);
 		} else if (isFolder) {
 			// Handle folder-based modules with Info.plist (non-compiled)
 			await this.addFolderModule(moduleDef, modulePath, relativePath, targetName, target, project, projectData, platformData);
@@ -714,7 +770,7 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		// Add header search paths for module (works for both types)
 		if (moduleDef.headerSearchPaths && Array.isArray(moduleDef.headerSearchPaths)) {
 			for (const headerPath of moduleDef.headerSearchPaths) {
-				const resolvedPath = path.resolve(projectData.projectDir, headerPath);
+				const resolvedPath = this.resolvePathWithBasedir(headerPath, basedir, projectData.projectDir);
 				const relPath = path.relative(platformData.projectRoot, resolvedPath);
 				project.addToHeaderSearchPaths(relPath, targetName);
 				this.$logger.trace(`Added header search path: ${relPath}`);
@@ -760,6 +816,7 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 
 	/**
 	 * Add folder-based module (with Info.plist) to target as Xcode module
+	 * TODO: Requirement 2, 3, 4 - Create separate module targets for source-based modules
 	 */
 	private async addFolderModule(
 		moduleDef: any,
@@ -780,6 +837,7 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		}
 
 		// Add the folder to the project as a group
+		// TODO: Requirement 3 - Create clean hierarchy under watch target name
 		const files = this.$fs.readDirectory(modulePath)
 			.filter((fileName) => !fileName.startsWith("."))
 			.map((fileName) => path.join(modulePath, fileName));
@@ -841,6 +899,49 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			project.addBuildProperty("OTHER_LDFLAGS", flagsArray, null, targetName);
 			this.$logger.trace(`Added linker flag: ${flag}`);
 		}
+	}
+
+	/**
+	 * Requirement 5: Add Swift Package module to target
+	 * TODO: Requirement 2 - Create separate module targets for Swift Packages
+	 */
+	private async addSwiftPackageModule(
+		moduleDef: any,
+		modulePath: string,
+		relativePath: string,
+		targetName: string,
+		target: IXcode.target,
+		project: IXcode.project,
+		projectData: IProjectData,
+		platformData: IPlatformData
+	): Promise<void> {
+		const moduleName = moduleDef.name || path.basename(modulePath);
+
+		this.$logger.trace(`Adding Swift Package module: ${moduleName}`);
+
+		// Check for Sources directory
+		const sourcesPath = path.join(modulePath, 'Sources');
+		if (!this.$fs.exists(sourcesPath)) {
+			this.$logger.warn(`No Sources directory found in Swift Package: ${modulePath}`);
+			return;
+		}
+
+		// Add sources directly to watch target
+		// TODO: Requirement 2 & 4 - Create separate target for Swift Package
+		this.addSourceFilesFromDirectory(
+			sourcesPath,
+			target.uuid,
+			targetName,
+			project,
+			platformData
+		);
+
+		// Add header search paths
+		project.addToHeaderSearchPaths(relativePath, targetName);
+		const sourcesRelativePath = path.relative(platformData.projectRoot, sourcesPath);
+		project.addToHeaderSearchPaths(sourcesRelativePath, targetName);
+
+		this.$logger.trace(`Added Swift Package module ${moduleName} at ${relativePath}`);
 	}
 
 	/**
