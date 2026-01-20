@@ -1,5 +1,22 @@
 import { assert } from "chai";
 
+/**
+ * Helper function to merge app and plugin SPM packages.
+ * App packages take precedence over plugin packages with the same name.
+ */
+function mergeSPMPackages(appPackages: any[], pluginPackages: any[]): any[] {
+	const spmPackages = [...appPackages];
+	const appPackageNames = new Set(spmPackages.map(pkg => pkg.name));
+	
+	for (const pluginPkg of pluginPackages) {
+		if (!appPackageNames.has(pluginPkg.name)) {
+			spmPackages.push(pluginPkg);
+		}
+	}
+	
+	return spmPackages;
+}
+
 describe("SPM Service - Package Override Logic", () => {
 	describe("merging app and plugin SPM packages", () => {
 		it("should allow app packages to override plugin packages with the same name", () => {
@@ -28,15 +45,7 @@ describe("SPM Service - Package Override Logic", () => {
 				},
 			];
 
-			// Simulate the merge logic from spm-service.ts
-			const spmPackages = [...appPackages];
-			const appPackageNames = new Set(spmPackages.map(pkg => pkg.name));
-			
-			for (const pluginPkg of pluginPackages) {
-				if (!appPackageNames.has(pluginPkg.name)) {
-					spmPackages.push(pluginPkg);
-				}
-			}
+			const spmPackages = mergeSPMPackages(appPackages, pluginPackages);
 
 			// Verify the result
 			assert.equal(spmPackages.length, 2, "Should have 2 packages total");
@@ -72,15 +81,7 @@ describe("SPM Service - Package Override Logic", () => {
 				},
 			];
 
-			// Simulate the merge logic
-			const spmPackages = [...appPackages];
-			const appPackageNames = new Set(spmPackages.map(pkg => pkg.name));
-			
-			for (const pluginPkg of pluginPackages) {
-				if (!appPackageNames.has(pluginPkg.name)) {
-					spmPackages.push(pluginPkg);
-				}
-			}
+			const spmPackages = mergeSPMPackages(appPackages, pluginPackages);
 
 			// Verify the result
 			assert.equal(spmPackages.length, 2, "Should include both plugin packages");
@@ -107,15 +108,7 @@ describe("SPM Service - Package Override Logic", () => {
 				},
 			];
 
-			// Simulate the merge logic
-			const spmPackages = [...appPackages];
-			const appPackageNames = new Set(spmPackages.map(pkg => pkg.name));
-			
-			for (const pluginPkg of pluginPackages) {
-				if (!appPackageNames.has(pluginPkg.name)) {
-					spmPackages.push(pluginPkg);
-				}
-			}
+			const spmPackages = mergeSPMPackages(appPackages, pluginPackages);
 
 			// Verify the result
 			assert.equal(spmPackages.length, 1, "Should have exactly 1 package");
@@ -154,15 +147,7 @@ describe("SPM Service - Package Override Logic", () => {
 				},
 			];
 
-			// Simulate the merge logic
-			const spmPackages = [...appPackages];
-			const appPackageNames = new Set(spmPackages.map(pkg => pkg.name));
-			
-			for (const pluginPkg of pluginPackages) {
-				if (!appPackageNames.has(pluginPkg.name)) {
-					spmPackages.push(pluginPkg);
-				}
-			}
+			const spmPackages = mergeSPMPackages(appPackages, pluginPackages);
 
 			// Verify the result
 			assert.equal(spmPackages.length, 3, "Should have all 3 packages");
