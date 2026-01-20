@@ -42,7 +42,16 @@ export class SPMService implements ISPMService {
 
 			if (pluginSpmPackages?.length) {
 				// include swift packages from plugin configs
-				spmPackages.push(...pluginSpmPackages);
+				// but allow app packages to override plugin packages with the same name
+				const appPackageNames = new Set(spmPackages.map(pkg => pkg.name));
+				
+				for (const pluginPkg of pluginSpmPackages) {
+					if (appPackageNames.has(pluginPkg.name)) {
+						this.$logger.trace(`SPM: app package overrides plugin package: ${pluginPkg.name}`);
+					} else {
+						spmPackages.push(pluginPkg);
+					}
+				}
 			}
 
 			if (!spmPackages.length) {
