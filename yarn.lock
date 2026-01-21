@@ -1717,7 +1717,7 @@ chai-as-promised@8.0.2:
   dependencies:
     check-error "^2.1.1"
 
-"chai@>= 2.1.2 < 7", chai@5.3.3:
+chai@5.3.3:
   version "5.3.3"
   resolved "https://registry.npmjs.org/chai/-/chai-5.3.3.tgz"
   integrity sha512-4zNhdJD/iOjSH0A05ea+Ke6MU5mmpQcbQsSOkgdaUMJ9zTlDTD/GYlwohmIE2u0gaxHYiVHEn1Fw9mZ/ktJWgw==
@@ -3272,7 +3272,7 @@ grunt-ts@6.0.0-beta.22:
     semver "^5.3.0"
     strip-bom "^2.0.0"
 
-"grunt@^1.0.0 || ^0.4.0", grunt@>=0.4.0, grunt@>=0.4.5, grunt@>=1, grunt@1.6.1:
+grunt@1.6.1:
   version "1.6.1"
   resolved "https://registry.npmjs.org/grunt/-/grunt-1.6.1.tgz"
   integrity sha512-/ABUy3gYWu5iBmrUSRBP97JLpQUm0GgVveDCp6t3yRNIoltIYw7rEj3g5y1o2PGPR2vfTRGa7WC/LZHLTXnEzA==
@@ -4213,15 +4213,15 @@ marked-terminal@7.3.0:
     node-emoji "^2.2.0"
     supports-hyperlinks "^3.1.0"
 
-"marked@>=1 <16", marked@15.0.12:
-  version "15.0.12"
-  resolved "https://registry.npmjs.org/marked/-/marked-15.0.12.tgz"
-  integrity sha512-8dD6FusOQSrpv9Z1rdNMdlSgQOIP880DHqnohobOmYLElGEqAL/JvxvuxZO16r4HtjTlfPRDC1hbvxC9dPN2nA==
-
 "marked@>=6.0.0 <12":
   version "11.2.0"
   resolved "https://registry.npmjs.org/marked/-/marked-11.2.0.tgz"
   integrity sha512-HR0m3bvu0jAPYiIvLUUQtdg1g6D247//lvcekpHO1WMvbwDlwSkZAX9Lw4F4YHE1T0HaaNve0tuAWuV1UJ6vtw==
+
+marked@15.0.12:
+  version "15.0.12"
+  resolved "https://registry.npmjs.org/marked/-/marked-15.0.12.tgz"
+  integrity sha512-8dD6FusOQSrpv9Z1rdNMdlSgQOIP880DHqnohobOmYLElGEqAL/JvxvuxZO16r4HtjTlfPRDC1hbvxC9dPN2nA==
 
 math-intrinsics@^1.1.0:
   version "1.1.0"
@@ -5141,7 +5141,7 @@ picomatch@^2.3.1:
   resolved "https://registry.npmjs.org/picomatch/-/picomatch-2.3.1.tgz"
   integrity sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==
 
-"picomatch@^3 || ^4", picomatch@^4.0.3:
+picomatch@^4.0.3:
   version "4.0.3"
   resolved "https://registry.npmjs.org/picomatch/-/picomatch-4.0.3.tgz"
   integrity sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q==
@@ -6455,7 +6455,7 @@ type-fest@^4.39.1, type-fest@^4.6.0:
   resolved "https://registry.npmjs.org/type-fest/-/type-fest-4.41.0.tgz"
   integrity sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA==
 
-typescript@>=1, typescript@>=2.7, typescript@5.7.3:
+typescript@5.7.3:
   version "5.7.3"
   resolved "https://registry.npmjs.org/typescript/-/typescript-5.7.3.tgz"
   integrity sha512-84MVSjMEHP+FQRPy3pX9sTVV/INIex71s9TL2Gm5FG/WG1SqXeKyZ0k7/blY/4FdOzI12CBy1vGc4og/eus0fw==
