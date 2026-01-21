@@ -12,12 +12,13 @@ import {
 	IAddWatchAppFromPathOptions,
 	IRemoveWatchAppOptions,
 	IProjectData,
+	IXcodeTargetBuildConfigurationProperty,
 } from "../definitions/project";
 import { IPlatformData } from "../definitions/platform";
 import { IFileSystem } from "../common/declarations";
 import { injector } from "../common/yok";
 import { MobileProject } from "@nstudio/trapezedev-project";
-
+import { Minimatch } from "minimatch";
 
 const sourceExtensions = [
 	'.swift', '.m', '.mm', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp'
@@ -71,7 +72,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		const project = new this.$xcode.project(pbxProjPath);
 		project.parseSync();
 
-		const watchApptarget = this.$iOSNativeTargetService.addTargetToProject(
+		// Add watch app target but don't auto-add files to prevent "Multiple commands produce" error
+		const watchApptarget = this.addTargetWithoutFiles(
 			appPath,
 			appFolder,
 			IOSNativeTargetTypes.watchApp,
@@ -103,7 +105,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 				extensionPath
 			)[0];
 
-			const watchExtensionTarget = this.$iOSNativeTargetService.addTargetToProject(
+			// Add extension target but don't auto-add files to prevent "Multiple commands produce" error
+			const watchExtensionTarget = this.addTargetWithoutFiles(
 				extensionPath,
 				extensionFolder,
 				IOSNativeTargetTypes.watchExtension,
@@ -157,13 +160,69 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 	}
 
 	/**
+	 * Add target to project without automatically adding files
+	 * This prevents the "Multiple commands produce" error
+	 */
+	private addTargetWithoutFiles(
+		targetRootPath: string,
+		targetFolder: string,
+		targetType: string,
+		project: IXcode.project,
+		platformData: IPlatformData,
+		parentTarget?: string
+	): IXcode.target {
+		const targetPath = path.join(targetRootPath, targetFolder);
+		const targetRelativePath = path.relative(
+			platformData.projectRoot,
+			targetPath
+		);
+		
+		const target = project.addTarget(
+			targetFolder,
+			targetType,
+			targetRelativePath,
+			parentTarget
+		);
+		
+		// Add build phases
+		project.addBuildPhase([], "PBXSourcesBuildPhase", "Sources", target.uuid);
+		project.addBuildPhase(
+			[],
+			"PBXResourcesBuildPhase",
+			"Resources",
+			target.uuid
+		);
+		project.addBuildPhase(
+			[],
+			"PBXFrameworksBuildPhase",
+			"Frameworks",
+			target.uuid
+		);
+
+		// Add group without files to avoid duplication
+		project.addPbxGroup([], targetFolder, targetPath, null, {
+			isMain: true,
+			target: target.uuid,
+			filesRelativeToProject: true,
+		});
+		
+		project.addToHeaderSearchPaths(
+			targetPath,
+			target.pbxNativeTarget.productName
+		);
+		
+		return target;
+	}
+
+	/**
 	 * Add source files from the watch app folder to the watch targets
 	 */
 	private async addWatchAppSourceFiles(
 		watchAppFolderPath: string,
 		targetUuids: string[],
 		project: IXcode.project,
-		platformData: IPlatformData
+		platformData: IPlatformData,
+		excludePatterns?: string[]
 	): Promise<void> {
 		try {
 			// Source directories to scan
@@ -187,7 +246,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 					sourcePath,
 					targetUuid,
 					project,
-					platformData
+					platformData,
+					excludePatterns
 				);
 			}
 
@@ -204,7 +264,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		dirPath: string,
 		targetUuid: string,
 		project: IXcode.project,
-		platformData: IPlatformData
+		platformData: IPlatformData,
+		excludePatterns?: string[]
 	): void {
 
 		const items = this.$fs.readDirectory(dirPath);
@@ -220,13 +281,20 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			const stats = this.$fs.getFsStats(itemPath);
 			const relativePath = path.relative(platformData.projectRoot, itemPath);
 
+			// Check if file/directory should be excluded based on patterns
+			if (excludePatterns && this.shouldExclude(relativePath, excludePatterns)) {
+				this.$logger.trace(`Excluding from src: ${relativePath}`);
+				continue;
+			}
+
 			if (stats.isDirectory()) {
 				// Recursively scan subdirectories for source files
 				this.addSourceFilesFromDirectory(
 					itemPath,
 					targetUuid,
 					project,
-					platformData
+					platformData,
+					excludePatterns
 				);
 			} else {
 				// Check if file is a source file by extension
@@ -247,7 +315,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		watchAppFolderPath: string,
 		targetUuids: string[],
 		project: IXcode.project,
-		platformData: IPlatformData
+		platformData: IPlatformData,
+		excludePatterns?: string[]
 	): Promise<void> {
 		try {
 			if (!this.$fs.exists(watchAppFolderPath)) {
@@ -260,7 +329,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 					watchAppFolderPath,
 					targetUuid,
 					project,
-					platformData
+					platformData,
+					excludePatterns
 				);
 			}
 
@@ -278,7 +348,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		dirPath: string,
 		targetUuid: string,
 		project: IXcode.project,
-		platformData: IPlatformData
+		platformData: IPlatformData,
+		excludePatterns?: string[]
 	): void {
 
 		const items = this.$fs.readDirectory(dirPath);
@@ -293,6 +364,12 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			const stats = this.$fs.getFsStats(itemPath);
 			const relativePath = path.relative(platformData.projectRoot, itemPath);
 
+			// Check if file/directory should be excluded based on patterns
+			if (excludePatterns && this.shouldExclude(relativePath, excludePatterns)) {
+				this.$logger.trace(`Excluding from resources: ${relativePath}`);
+				continue;
+			}
+
 			if (stats.isDirectory()) {
 				// Special handling for .xcassets, .bundle, and other resource bundles
 				if (item.endsWith('.xcassets') || item.endsWith('.bundle')) {
@@ -304,7 +381,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 						itemPath,
 						targetUuid,
 						project,
-						platformData
+						platformData,
+						excludePatterns
 					);
 				}
 			} else {
@@ -366,14 +444,55 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		identifierParts.pop();
 		const wkAppBundleIdentifier = identifierParts.join(".");
 
+		// Build configuration properties
+		const buildConfigProperties: IXcodeTargetBuildConfigurationProperty[] = [
+			{ name: "PRODUCT_BUNDLE_IDENTIFIER", value: identifier },
+			{ name: "SDKROOT", value: "watchos" },
+			{ name: "TARGETED_DEVICE_FAMILY", value: IOSDeviceTargets.watchos },
+			{ name: "WATCHOS_DEPLOYMENT_TARGET", value: 5.2 },
+			{ name: "WK_APP_BUNDLE_IDENTIFIER", value: wkAppBundleIdentifier },
+		];
+
+		// Handle custom Info.plist path
+		if (config?.infoPlistPath) {
+			const infoPlistPath = path.resolve(path.dirname(configPath), config.infoPlistPath);
+			if (this.$fs.exists(infoPlistPath)) {
+				// Copy to target location or set the path
+				const destInfoPlistPath = path.join(targetPath, 'Info.plist');
+				if (infoPlistPath !== destInfoPlistPath) {
+					this.$fs.copyFile(infoPlistPath, destInfoPlistPath);
+					this.$logger.trace(`Copied custom Info.plist from ${infoPlistPath} to ${destInfoPlistPath}`);
+				}
+				const relativeInfoPlistPath = path.relative(platformData.projectRoot, destInfoPlistPath);
+				buildConfigProperties.push({
+					name: "INFOPLIST_FILE",
+					value: `"${relativeInfoPlistPath}"`
+				});
+			} else {
+				this.$logger.warn(`Custom Info.plist not found at: ${infoPlistPath}`);
+			}
+		}
+
+		// Handle custom xcprivacy file path
+		if (config?.xcprivacyPath) {
+			const xcprivacyPath = path.resolve(path.dirname(configPath), config.xcprivacyPath);
+			if (this.$fs.exists(xcprivacyPath)) {
+				// Copy to target location
+				const destXcprivacyPath = path.join(targetPath, 'PrivacyInfo.xcprivacy');
+				if (xcprivacyPath !== destXcprivacyPath) {
+					this.$fs.copyFile(xcprivacyPath, destXcprivacyPath);
+					this.$logger.trace(`Copied custom xcprivacy from ${xcprivacyPath} to ${destXcprivacyPath}`);
+				}
+				// Add as resource file
+				const relativeXcprivacyPath = path.relative(platformData.projectRoot, destXcprivacyPath);
+				(project as any).addResourceFile(relativeXcprivacyPath, { target: target.uuid });
+			} else {
+				this.$logger.warn(`Custom xcprivacy file not found at: ${xcprivacyPath}`);
+			}
+		}
+
 		this.$iOSNativeTargetService.setXcodeTargetBuildConfigurationProperties(
-			[
-				{ name: "PRODUCT_BUNDLE_IDENTIFIER", value: identifier },
-				{ name: "SDKROOT", value: "watchos" },
-				{ name: "TARGETED_DEVICE_FAMILY", value: IOSDeviceTargets.watchos },
-				{ name: "WATCHOS_DEPLOYMENT_TARGET", value: 5.2 },
-				{ name: "WK_APP_BUNDLE_IDENTIFIER", value: wkAppBundleIdentifier },
-			],
+			buildConfigProperties,
 			targetName,
 			project
 		);
@@ -389,13 +508,18 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			target.pbxNativeTarget.productName
 		);
 
+		// Get exclude patterns for resources and src
+		const resourcesExclude = config?.resourcesExclude || [];
+		const srcExclude = config?.srcExclude || [];
+
 		// Add source files to watch targets (swift, h, cpp, etc.)
 		if (config?.importSourcesFromWatchFolder !== false) {
 			await this.addWatchAppSourceFiles(
 				path.dirname(configPath),
 				[target.uuid],
 				project,
-				platformData
+				platformData,
+				srcExclude
 			);
 		}
 
@@ -405,7 +529,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 				path.dirname(configPath),
 				[target.uuid],
 				project,
-				platformData
+				platformData,
+				resourcesExclude
 			);
 		}
 
@@ -949,6 +1074,19 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Check if a path should be excluded based on glob patterns
+	 */
+	private shouldExclude(filePath: string, excludePatterns: string[]): boolean {
+		for (const pattern of excludePatterns) {
+			const matcher = new Minimatch(pattern, { dot: true });
+			if (matcher.match(filePath)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
