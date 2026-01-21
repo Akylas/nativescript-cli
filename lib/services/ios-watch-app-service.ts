@@ -18,11 +18,28 @@ import { IFileSystem } from "../common/declarations";
 import { injector } from "../common/yok";
 import { MobileProject } from "@nstudio/trapezedev-project";
 
+
+const sourceExtensions = [
+	'.swift', '.m', '.mm', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp'
+];
+const resourceExtensions = [
+	'.png', '.jpg', '.jpeg', '.gif', '.svg', '.pdf',  // Images
+	'.ttf', '.otf', '.woff', '.woff2',                 // Fonts
+	'.xcassets',                                        // Asset catalogs
+	'.storyboard', '.xib',                             // Interface files
+	'.strings', '.stringsdict',                        // Localization
+	'.json', '.xml', '.plist',                         // Data files
+	'.m4a', '.mp3', '.wav', '.caf',                    // Audio
+	'.mp4', '.mov',                                     // Video
+	'.bundle',                                          // Resource bundles
+];
+const WATCH_APP_IDENTIFIER = "watchkitapp";
+const WACTCH_EXTENSION_IDENTIFIER = "watchkitextension";
+const CONFIG_FILE_WATCHAPP = "watchapp.json";
+const CONFIG_FILE_EXTENSION = "extension.json";
+const RESOURCES_TO_IGNORE = [CONFIG_FILE_WATCHAPP, CONFIG_FILE_EXTENSION, 'node_modules'];
+
 export class IOSWatchAppService implements IIOSWatchAppService {
-	private static WATCH_APP_IDENTIFIER = "watchkitapp";
-	private static WACTCH_EXTENSION_IDENTIFIER = "watchkitextension";
-	private static CONFIG_FILE_WATCHAPP = "watchapp.json";
-	private static CONFIG_FILE_EXTENSION = "extension.json";
 
 	constructor(
 		protected $fs: IFileSystem,
@@ -41,18 +58,11 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		const targetUuids: string[] = [];
 		const targetNames: string[] = [];
 		const appPath = path.join(watchAppFolderPath, IOS_WATCHAPP_FOLDER);
-		const extensionPath = path.join(
-			watchAppFolderPath,
-			IOS_WATCHAPP_EXTENSION_FOLDER
-		);
 
 		// Check if watchapp exists - it's required
 		if (!this.$fs.exists(appPath)) {
 			return false;
 		}
-
-		// Extension is optional (Xcode 14+ supports single target)
-		const hasExtension = this.$fs.exists(extensionPath);
 
 		const appFolder = this.$iOSNativeTargetService.getTargetDirectories(
 			appPath
@@ -72,18 +82,23 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		await this.configureTarget(
 			appFolder,
 			path.join(appPath, appFolder),
-			`${projectData.projectIdentifiers.ios}.${IOSWatchAppService.WATCH_APP_IDENTIFIER}`,
+			`${projectData.projectIdentifiers.ios}.${WATCH_APP_IDENTIFIER}`,
 			"watchapp.json",
 			watchApptarget,
 			project,
 			projectData,
-			platformData
+			platformData,
+			pbxProjPath
 		);
 		targetUuids.push(watchApptarget.uuid);
 		targetNames.push(appFolder);
 
-		// Add extension target only if it exists (optional for Xcode 14+)
-		if (hasExtension) {
+		const extensionPath = path.join(
+			watchAppFolderPath,
+			IOS_WATCHAPP_EXTENSION_FOLDER
+		);
+		// Extension is optional (Xcode 14+ supports single target)
+		if (this.$fs.exists(extensionPath)) {
 			const extensionFolder = this.$iOSNativeTargetService.getTargetDirectories(
 				extensionPath
 			)[0];
@@ -99,12 +114,13 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			await this.configureTarget(
 				extensionFolder,
 				path.join(extensionPath, extensionFolder),
-				`${projectData.projectIdentifiers.ios}.${IOSWatchAppService.WATCH_APP_IDENTIFIER}.${IOSWatchAppService.WACTCH_EXTENSION_IDENTIFIER}`,
+				`${projectData.projectIdentifiers.ios}.${WATCH_APP_IDENTIFIER}.${WACTCH_EXTENSION_IDENTIFIER}`,
 				"extension.json",
 				watchExtensionTarget,
 				project,
 				projectData,
-				platformData
+				platformData,
+				pbxProjPath
 			);
 			targetUuids.push(watchExtensionTarget.uuid);
 			targetNames.push(extensionFolder);
@@ -114,41 +130,27 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			);
 		}
 
+
 		this.$fs.writeFile(
 			pbxProjPath,
 			project.writeSync({ omitEmptyValues: true })
 		);
+
+		// Add SPM packages (file needs to be saved first)
+		const watchSPMPackages = this.getWatchSPMPackages(platformData);
+
+		await this.applySPMPackagesToWatchTargets(
+			[projectData.projectName],
+			platformData,
+			projectData.projectDir,
+			watchSPMPackages
+		);
+
+
 		this.$iOSNativeTargetService.prepareSigning(
 			targetUuids,
 			projectData,
 			pbxProjPath
-		);
-
-		// Add source files to watch targets (swift, h, cpp, etc.)
-		await this.addWatchAppSourceFiles(
-			watchAppFolderPath,
-			targetUuids,
-			targetNames,
-			project,
-			platformData,
-			pbxProjPath
-		);
-
-		// Add resources to watch targets (fonts, assets, files, etc.)
-		await this.addWatchAppResources(
-			watchAppFolderPath,
-			targetUuids,
-			targetNames,
-			project,
-			platformData,
-			pbxProjPath
-		);
-
-		// Apply SPM packages to watch targets if configured
-		await this.applySPMPackagesToWatchTargets(
-			targetNames,
-			projectData,
-			platformData
 		);
 
 		return true;
@@ -160,10 +162,8 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 	private async addWatchAppSourceFiles(
 		watchAppFolderPath: string,
 		targetUuids: string[],
-		targetNames: string[],
 		project: IXcode.project,
-		platformData: IPlatformData,
-		pbxProjPath: string
+		platformData: IPlatformData
 	): Promise<void> {
 		try {
 			// Source directories to scan
@@ -181,23 +181,15 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 				}
 
 				const targetUuid = targetUuids[i];
-				const targetName = targetNames[i];
 
 				// Scan for source files (swift, h, m, mm, cpp, c)
 				this.addSourceFilesFromDirectory(
 					sourcePath,
 					targetUuid,
-					targetName,
 					project,
 					platformData
 				);
 			}
-
-			// Write changes if any source files were added
-			this.$fs.writeFile(
-				pbxProjPath,
-				project.writeSync({ omitEmptyValues: true })
-			);
 
 			this.$logger.trace("Watch app source files added successfully");
 		} catch (err) {
@@ -211,13 +203,9 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 	private addSourceFilesFromDirectory(
 		dirPath: string,
 		targetUuid: string,
-		targetName: string,
 		project: IXcode.project,
 		platformData: IPlatformData
 	): void {
-		const sourceExtensions = [
-			'.swift', '.m', '.mm', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp'
-		];
 
 		const items = this.$fs.readDirectory(dirPath);
 
@@ -237,7 +225,6 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 				this.addSourceFilesFromDirectory(
 					itemPath,
 					targetUuid,
-					targetName,
 					project,
 					platformData
 				);
@@ -259,44 +246,23 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 	private async addWatchAppResources(
 		watchAppFolderPath: string,
 		targetUuids: string[],
-		targetNames: string[],
 		project: IXcode.project,
-		platformData: IPlatformData,
-		pbxProjPath: string
+		platformData: IPlatformData
 	): Promise<void> {
 		try {
-			// Resource directories to scan
-			const resourceDirs = [
-				IOS_WATCHAPP_FOLDER,
-				IOS_WATCHAPP_EXTENSION_FOLDER,
-			];
-
-			for (let i = 0; i < resourceDirs.length && i < targetUuids.length; i++) {
-				const resourceDir = resourceDirs[i];
-				const resourcePath = path.join(watchAppFolderPath, resourceDir);
-
-				if (!this.$fs.exists(resourcePath)) {
-					continue;
-				}
-
+			if (!this.$fs.exists(watchAppFolderPath)) {
+				return;
+			}
+			for (let i = 0; i < targetUuids.length; i++) {
 				const targetUuid = targetUuids[i];
-				const targetName = targetNames[i];
-
 				// Scan for resource files (fonts, assets, images, etc.)
 				this.addResourcesFromDirectory(
-					resourcePath,
+					watchAppFolderPath,
 					targetUuid,
-					targetName,
 					project,
 					platformData
 				);
 			}
-
-			// Write changes if any resources were added
-			this.$fs.writeFile(
-				pbxProjPath,
-				project.writeSync({ omitEmptyValues: true })
-			);
 
 			this.$logger.trace("Watch app resources added successfully");
 		} catch (err) {
@@ -311,32 +277,15 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 	private addResourcesFromDirectory(
 		dirPath: string,
 		targetUuid: string,
-		targetName: string,
 		project: IXcode.project,
 		platformData: IPlatformData
 	): void {
-		const resourceExtensions = [
-			'.png', '.jpg', '.jpeg', '.gif', '.svg', '.pdf',  // Images
-			'.ttf', '.otf', '.woff', '.woff2',                 // Fonts
-			'.xcassets',                                        // Asset catalogs
-			'.storyboard', '.xib',                             // Interface files
-			'.strings', '.stringsdict',                        // Localization
-			'.json', '.xml', '.plist',                         // Data files
-			'.m4a', '.mp3', '.wav', '.caf',                    // Audio
-			'.mp4', '.mov',                                     // Video
-			'.bundle',                                          // Resource bundles
-		];
 
 		const items = this.$fs.readDirectory(dirPath);
 
 		for (const item of items) {
-			// Skip hidden files and certain directories
-			if (item.startsWith('.') || item === 'node_modules') {
-				continue;
-			}
-
-			// Requirement 6: Exclude config files from resources
-			if (item === IOSWatchAppService.CONFIG_FILE_WATCHAPP || item === IOSWatchAppService.CONFIG_FILE_EXTENSION) {
+			// Skip hidden files and excluded files/directories
+			if (item.startsWith('.') || RESOURCES_TO_IGNORE.indexOf(item) !== -1) {
 				continue;
 			}
 
@@ -354,7 +303,6 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 					this.addResourcesFromDirectory(
 						itemPath,
 						targetUuid,
-						targetName,
 						project,
 						platformData
 					);
@@ -404,12 +352,15 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		target: IXcode.target,
 		project: IXcode.project,
 		projectData: IProjectData,
-		platformData: IPlatformData
+		platformData: IPlatformData,
+		pbxProjPath: string
 	) {
-		const targetConfigurationJsonPath = path.join(
+		const configPath = path.join(
 			targetPath,
 			configurationFileName
 		);
+
+		const config = this.$fs.exists(configPath) ? this.$fs.readJson(configPath): null;
 
 		const identifierParts = identifier.split(".");
 		identifierParts.pop();
@@ -428,7 +379,7 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		);
 
 		this.$iOSNativeTargetService.setConfigurationsFromJsonFile(
-			targetConfigurationJsonPath,
+			configPath,
 			target.uuid,
 			targetName,
 			project
@@ -438,35 +389,57 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			target.pbxNativeTarget.productName
 		);
 
-		// Process additional configurations for watch apps
-		await this.processWatchAppConfiguration(
-			targetConfigurationJsonPath,
-			targetName,
-			target,
-			project,
-			projectData,
-			platformData
-		);
+		// Add source files to watch targets (swift, h, cpp, etc.)
+		if (config?.importSourcesFromWatchFolder !== false) {
+			await this.addWatchAppSourceFiles(
+				path.dirname(configPath),
+				[target.uuid],
+				project,
+				platformData
+			);
+		}
+
+		// Add resources to watch targets (fonts, assets, files, etc.)
+		if (config?.importResourcesFromWatchFolder !== false) {
+			await this.addWatchAppResources(
+				path.dirname(configPath),
+				[target.uuid],
+				project,
+				platformData
+			);
+		}
+
+
+		if (config) {
+			// Process additional configurations
+			await this.processWatchAppConfiguration(
+				config,
+				configPath,
+				targetName,
+				target,
+				project,
+				projectData,
+				platformData,
+				pbxProjPath
+			);
+		}
 	}
 
 	/**
 	 * Process additional watch app configurations including modules and workspace targets
 	 */
 	private async processWatchAppConfiguration(
+		config: Record<string, any>,
 		configPath: string,
 		targetName: string,
 		target: IXcode.target,
 		project: IXcode.project,
 		projectData: IProjectData,
-		platformData: IPlatformData
+		platformData: IPlatformData,
+		pbxProjPath: string
 	): Promise<void> {
-		if (!this.$fs.exists(configPath)) {
-			return;
-		}
+		this.$logger.trace(`processWatchAppConfiguration ${JSON.stringify(config)}`);
 
-		const config = this.$fs.readJson(configPath) || {};
-
-		// Requirement 1: Support basedir for all paths
 		let basedir: string | undefined;
 		if (config.basedir) {
 			basedir = path.resolve(path.dirname(configPath), config.basedir);
@@ -505,7 +478,6 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 				this.addCustomResource(
 					resourcePath,
 					target.uuid,
-					targetName,
 					project,
 					projectData,
 					platformData,
@@ -531,6 +503,19 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 				);
 			}
 		}
+		// to be able to add SPM the file needs to be saved
+		this.$fs.writeFile(
+			pbxProjPath,
+			project.writeSync({ omitEmptyValues: true })
+		);
+		if (config.SPMPackages && Array.isArray(config.SPMPackages)) {
+			await this.applySPMPackagesToWatchTargets(
+				[projectData.projectName],
+				platformData,
+				basedir,
+				config.SPMPackages
+			);
+		}
 	}
 
 	/**
@@ -540,7 +525,6 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 	private addCustomResource(
 		resourcePath: string,
 		targetUuid: string,
-		targetName: string,
 		project: IXcode.project,
 		projectData: IProjectData,
 		platformData: IPlatformData,
@@ -559,7 +543,6 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		const stats = this.$fs.getFsStats(resolvedPath);
 
 		if (stats.isDirectory()) {
-			// Requirement 7: Recursively add every file in the folder
 			this.$logger.trace(
 				`Recursively adding files from resource directory: ${resourcePath}`
 			);
@@ -680,12 +663,10 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		const items = this.$fs.readDirectory(dirPath);
 
 		for (const item of items) {
-			// Skip hidden files and config files
-			if (item.startsWith('.') || 
-			    item === IOSWatchAppService.CONFIG_FILE_WATCHAPP || 
-			    item === IOSWatchAppService.CONFIG_FILE_EXTENSION) {
+			// Skip hidden files
+			if (item.startsWith('.')) {
 				continue;
-			}
+			}			
 
 			const itemPath = path.join(dirPath, item);
 			const stats = this.$fs.getFsStats(itemPath);
@@ -709,8 +690,7 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 	}
 
 	/**
-	 * Add module dependency to watch app target (e.g., "Data" module from xcframework or folder)
-	 * Requirement 5: Support Swift Package modules (Package.swift with Sources folder)
+	 * Add module dependency to target
 	 */
 	private async addModuleDependency(
 		moduleDef: any,
@@ -721,12 +701,11 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		platformData: IPlatformData,
 		basedir?: string
 	): Promise<void> {
-		const moduleName = moduleDef.name;
 		const modulePath = moduleDef.path
 			? this.resolvePathWithBasedir(moduleDef.path, basedir, projectData.projectDir)
 			: null;
 
-		this.$logger.trace(`Adding module dependency: ${moduleName} to ${targetName}`);
+		this.$logger.trace(`Adding module dependency: ${moduleDef} to ${targetName}`);
 
 		if (!modulePath || !this.$fs.exists(modulePath)) {
 			this.$logger.warn(`Module path not found, skipping module: ${modulePath}`);
@@ -740,7 +719,7 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		const isFramework = modulePath.endsWith('.framework') || modulePath.endsWith('.xcframework');
 		const isFolder = stats.isDirectory() && !isFramework;
 
-		// Requirement 5: Check for Swift Package (has Package.swift and Sources folder)
+		// Check for Swift Package (has Package.swift and Sources folder)
 		const hasPackageSwift = isFolder && this.$fs.exists(path.join(modulePath, 'Package.swift'));
 		const hasSourcesDir = hasPackageSwift && this.$fs.exists(path.join(modulePath, 'Sources'));
 		const isSwiftPackage = hasPackageSwift && hasSourcesDir;
@@ -749,10 +728,10 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			// Handle compiled frameworks (xcframework, framework)
 			this.addCompiledFramework(moduleDef, relativePath, targetName, target, project);
 		} else if (isSwiftPackage) {
-			// Requirement 5: Handle Swift Package modules
-			await this.addSwiftPackageModule(moduleDef, modulePath, relativePath, targetName, target, project, projectData, platformData);
+			// Handle Swift Package modules
+			await this.addSwiftPackageModule(moduleDef, modulePath, relativePath, targetName, target, project, platformData);
 		} else if (isFolder) {
-			// Handle folder-based modules with Info.plist (non-compiled)
+			// Handle folder-based modules
 			await this.addFolderModule(moduleDef, modulePath, relativePath, targetName, target, project, projectData, platformData);
 		} else {
 			this.$logger.warn(`Unknown module type for: ${modulePath}`);
@@ -760,7 +739,7 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 
 		// Add system framework dependencies if specified
 		if (moduleDef.frameworks && Array.isArray(moduleDef.frameworks)) {
-			this.$logger.trace(`Adding ${moduleDef.frameworks.length} framework(s) for module ${moduleName}`);
+			this.$logger.trace(`Adding ${moduleDef.frameworks.length} framework(s) for module ${moduleDef}`);
 			for (const framework of moduleDef.frameworks) {
 				project.addFramework(framework, { target: target.uuid });
 				this.$logger.trace(`Added framework dependency: ${framework}`);
@@ -912,7 +891,6 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		targetName: string,
 		target: IXcode.target,
 		project: IXcode.project,
-		projectData: IProjectData,
 		platformData: IPlatformData
 	): Promise<void> {
 		const moduleName = moduleDef.name || path.basename(modulePath);
@@ -927,11 +905,9 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 		}
 
 		// Add sources directly to watch target
-		// TODO: Requirement 2 & 4 - Create separate target for Swift Package
 		this.addSourceFilesFromDirectory(
 			sourcesPath,
 			target.uuid,
-			targetName,
 			project,
 			platformData
 		);
@@ -980,15 +956,13 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 	 */
 	private async applySPMPackagesToWatchTargets(
 		targetNames: string[],
-		projectData: IProjectData,
-		platformData: IPlatformData
+		platformData: IPlatformData,
+		basedir: string,
+		watchSPMPackages: any[]
 	): Promise<void> {
 		try {
-			// Check if watch-specific SPM packages are configured
-			const watchSPMPackages = this.getWatchSPMPackages(projectData, platformData);
-
+			this.$logger.trace(`applySPMPackagesToWatchTargets ${JSON.stringify(watchSPMPackages)}`);
 			if (watchSPMPackages.length === 0) {
-				this.$logger.trace("No SPM packages configured for watch targets");
 				return;
 			}
 
@@ -1012,11 +986,10 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 			// Add SPM packages to each watch target
 			for (const pkg of watchSPMPackages) {
 				if ("path" in pkg) {
-					pkg.path = path.resolve(projectData.projectDir, pkg.path);
+					pkg.path = path.resolve(basedir, pkg.path);
 				}
 
-				this.$logger.trace(`Adding SPM package ${pkg.name} to watch targets`);
-
+				this.$logger.trace(`Adding SPM package ${pkg.name} to target ${targetNames}`);
 				for (const targetName of targetNames) {
 					await project.ios.addSPMPackage(targetName, pkg);
 				}
@@ -1033,7 +1006,6 @@ export class IOSWatchAppService implements IIOSWatchAppService {
 	 * Get SPM packages configured for watch app targets
 	 */
 	private getWatchSPMPackages(
-		projectData: IProjectData,
 		platformData: IPlatformData
 	): IosSPMPackage[] {
 		const $projectConfigService = injector.resolve("projectConfigService");
