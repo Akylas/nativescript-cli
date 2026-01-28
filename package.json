@@ -179,5 +179,9 @@
   "lint-staged": {
     "*.ts": "prettier --write"
   },
-  "packageManager": "yarn@4.10.3"
+  "packageManager": "yarn@4.10.3",
+  "resolutions": {
+    "nativescript-dev-xcode@0.8.1": "patch:nativescript-dev-xcode@npm%3A0.8.1#./.yarn/patches/nativescript-dev-xcode-npm-0.8.1-c14b82ef0b.patch",
+    "@nstudio/trapezedev-project@7.2.3": "patch:@nstudio/trapezedev-project@npm%3A7.2.3#./.yarn/patches/@nstudio-trapezedev-project-npm-7.2.3-6b4d535c7d.patch"
+  }
 }

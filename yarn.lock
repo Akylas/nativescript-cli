@@ -1055,6 +1055,36 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@nstudio/trapezedev-project@patch:@nstudio/trapezedev-project@npm%3A7.2.3#./.yarn/patches/@nstudio-trapezedev-project-npm-7.2.3-6b4d535c7d.patch::locator=%40akylas%2Fnativescript-cli%40workspace%3A.":
+  version: 7.2.3
+  resolution: "@nstudio/trapezedev-project@patch:@nstudio/trapezedev-project@npm%3A7.2.3#./.yarn/patches/@nstudio-trapezedev-project-npm-7.2.3-6b4d535c7d.patch::version=7.2.3&hash=8361a2&locator=%40akylas%2Fnativescript-cli%40workspace%3A."
+  dependencies:
+    "@ionic/utils-fs": "npm:^3.1.5"
+    "@ionic/utils-subprocess": "npm:^2.1.8"
+    "@prettier/plugin-xml": "npm:^2.2.0"
+    "@trapezedev/gradle-parse": "npm:7.1.3"
+    "@xmldom/xmldom": "npm:^0.8.11"
+    cross-spawn: "npm:^7.0.3"
+    diff: "npm:^5.1.0"
+    env-paths: "npm:^3.0.0"
+    gradle-to-js: "npm:^2.0.0"
+    ini: "npm:^2.0.0"
+    kleur: "npm:^4.1.5"
+    lodash: "npm:^4.17.21"
+    plist: "npm:^3.0.4"
+    prettier: "npm:^2.7.1"
+    prompts: "npm:^2.4.2"
+    replace: "npm:^1.1.0"
+    tmp: "npm:^0.2.1"
+    ts-node: "npm:^10.2.1"
+    xcode: "npm:^3.0.1"
+    xml-js: "npm:^1.6.11"
+    xpath: "npm:^0.0.32"
+    yargs: "npm:^17.2.1"
+  checksum: 10c0/29b0e0e692965f98e02e2c085526a40d49fa09b3d1dd0e9f9aeb05586aa67ee7a0af0000e43826912cc0419f1e6ef029c936d6b460b305f195c8ca414296f3f9
+  languageName: node
+  linkType: hard
+
 "@pkgjs/parseargs@npm:^0.11.0":
   version: 0.11.0
   resolution: "@pkgjs/parseargs@npm:0.11.0"
@@ -6499,6 +6529,16 @@ __metadata:
     simple-plist: "npm:1.3.1"
     uuid: "npm:9.0.1"
   checksum: 10c0/dfd5aaab3cca1863c6d506106496506fc147b65dc3da7fb86d21ef6cfc1b67ae8ab53f33cc6c18cc5d6aaaafd82cac6c000117d8cfbf3dacf492925673d01ded
+  languageName: node
+  linkType: hard
+
+"nativescript-dev-xcode@patch:nativescript-dev-xcode@npm%3A0.8.1#./.yarn/patches/nativescript-dev-xcode-npm-0.8.1-c14b82ef0b.patch::locator=%40akylas%2Fnativescript-cli%40workspace%3A.":
+  version: 0.8.1
+  resolution: "nativescript-dev-xcode@patch:nativescript-dev-xcode@npm%3A0.8.1#./.yarn/patches/nativescript-dev-xcode-npm-0.8.1-c14b82ef0b.patch::version=0.8.1&hash=46999c&locator=%40akylas%2Fnativescript-cli%40workspace%3A."
+  dependencies:
+    simple-plist: "npm:1.3.1"
+    uuid: "npm:9.0.1"
+  checksum: 10c0/1f4d2457aebb381e2bbdca5ea32b1b0f6dd184cb5eb62df0b6236744111ce68fb135c882c4cf9fe74e563b24f7c78291f34d6477529d48d700680d4822848335
   languageName: node
   linkType: hard
 
