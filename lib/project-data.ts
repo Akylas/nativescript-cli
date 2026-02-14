@@ -57,7 +57,7 @@ export class ProjectData implements IProjectData {
 		},
 		{
 			type: constants.ProjectTypes.SvelteFlavorName,
-			requiredDependencies: ["svelte-native"],
+			requiredDependencies: ["@nativescript-community/svelte-native"],
 		},
 		{
 			type: constants.ProjectTypes.TsFlavorName,
