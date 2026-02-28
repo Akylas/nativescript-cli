@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [8.11.1](https://github.com/farfromrefug/nativescript-cli/compare/v8.10.0...v8.11.1) (2026-02-28)
+
+
+### Bug Fixes
+
+* using patch-packages for patches for now as yarn patches wont install with `npm i -g` ([6f0ea67](https://github.com/farfromrefug/nativescript-cli/commit/6f0ea6740abe886ad4fcbd16af9280c826f4c447))
+
 ## [8.11.0](https://github.com/farfromrefug/nativescript-cli/compare/v8.9.3...v8.11.0) (2026-02-14)
 
 
