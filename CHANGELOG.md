@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [8.11.2](https://github.com/farfromrefug/nativescript-cli/compare/v8.11.1...v8.11.2) (2026-02-28)
+
+
+### Bug Fixes
+
+* patch-package need to be a prod dep ([4b11f07](https://github.com/farfromrefug/nativescript-cli/commit/4b11f073bf296bad7e67a0c4ca41d69aaf1285d1))
+
 ### [8.11.1](https://github.com/farfromrefug/nativescript-cli/compare/v8.10.0...v8.11.1) (2026-02-28)
 
 
