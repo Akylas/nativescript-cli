@@ -119,9 +119,9 @@ In the command prompt, run the following command.
 
 OS | Node.js installed from https://nodejs.org/ | Node.js installed via package manager
 ---|---------------------|----
-Windows | `npm install nativescript -g` | `npm install nativescript -g`
-macOS | `sudo npm install nativescript -g --unsafe-perm` | `npm install nativescript -g`
-Linux | `sudo npm install nativescript -g --unsafe-perm` | `npm install nativescript -g`
+Windows | `npm install @akylas/nativescript-cli -g` | `npm install @akylas/nativescript-cli -g`
+macOS | `sudo npm install @akylas/nativescript-cli -g --unsafe-perm` | `npm install @akylas/nativescript-cli -g`
+Linux | `sudo npm install @akylas/nativescript-cli -g --unsafe-perm` | `npm install @akylas/nativescript-cli -g`
 
 To check if your system is configured properly, run the following command.
 
