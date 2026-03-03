@@ -121,18 +121,18 @@ export class CommandDispatcher implements ICommandDispatcher {
 
 		switch (packageManagerName) {
 			case PackageManagers.yarn:
-			case PackageManagers.yarn2:
-				updateCommand = "yarn global add nativescript";
+			// case PackageManagers.yarn2:
+				updateCommand = "yarn global add @akylas/nativescript-cli";
 				break;
 			case PackageManagers.pnpm:
-				updateCommand = "pnpm i -g nativescript";
+				updateCommand = "pnpm i -g @akylas/nativescript-cli";
 				break;
 			case PackageManagers.bun:
-				updateCommand = "bun add --global nativescript";
+				updateCommand = "bun add --global @akylas/nativescript-cli";
 				break;
 			case PackageManagers.npm:
 			default:
-				updateCommand = "npm i -g nativescript";
+				updateCommand = "npm i -g @akylas/nativescript-cli";
 				break;
 		}
 
