@@ -191,6 +191,10 @@ buildscript {
         def pluginData = appDependencies.find { it.name == project.ext.PLUGIN_NAME }
         project.ext.nativescriptDependencies = appDependencies.findAll{pluginData.dependencies.contains(it.name)}.plus([pluginData])
     }
+
+    initialize()
+    project.ext.applyBeforePluginGradleConfiguration()
+
     def applyBuildScriptConfigurations = { ->
         def absolutePathToAppResources = project.ext.getAppResourcesPath()
         def pathToBuildScriptGradle = "$absolutePathToAppResources/Android/buildscript.gradle"
@@ -223,8 +227,6 @@ buildscript {
         }
     }
 
-    initialize()
-    project.ext.applyBeforePluginGradleConfiguration()
     applyBuildScriptConfigurations()
 
     def computeKotlinVersion = { -> project.hasProperty("kotlinVersion") ? kotlinVersion : "${ns_default_kotlin_version}" }
