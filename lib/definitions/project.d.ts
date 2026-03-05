@@ -126,6 +126,7 @@ export type BundlerType = "webpack" | "rspack" | "vite";
 interface INsConfigIOS extends INsConfigPlaform {
 	discardUncaughtJsExceptions?: boolean;
 	runtimePackageName?: string
+	ignoredNativeDependencies?: string[];
 	cocoapodUseBundleExec?: boolean
 	/**
 	 * Swift Package Manager
@@ -175,9 +176,11 @@ interface INsConfigAndroid extends INsConfigPlaform {
 
 	gradleArgs?: string[];
 
-	plugins?:{ [k:string]: { aarSuffix?: string } }
+	plugins?:{ [k:string]: { aarSuffix?: string } };
 
-	runtimePackageName?: string
+	runtimePackageName?: string;
+
+	ignoredNativeDependencies?: string[];
 }
 
 interface INsConfigHooks {
@@ -212,7 +215,6 @@ interface IProjectData extends ICreateProjectData {
 	projectId: string;
 	projectIdentifiers?: Mobile.IProjectIdentifier;
 	dependencies: any;
-	ignoredDependencies?: string[];
 	devDependencies: IStringDictionary;
 	appDirectoryPath: string;
 	appResourcesDirectoryPath: string;
@@ -270,6 +272,7 @@ interface IProjectData extends ICreateProjectData {
 	getAppResourcesDirectoryPath(projectDir?: string): string;
 	getAppResourcesRelativeDirectoryPath(): string;
 	getBuildRelativeDirectoryPath(): string;
+	getIgnoredDependencies(platform: string): string[];
 }
 
 interface IProjectDataService {
