@@ -39,6 +39,7 @@ import { injector } from "../common/yok";
 import * as _ from "lodash";
 import { resolvePackageJSONPath } from "@rigor789/resolve-package-path";
 import { cwd } from "process";
+import { IGradleBuildArgsService } from "../definitions/gradle";
 
 export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 	private get $platformsDataService(): IPlatformsDataService {
@@ -56,6 +57,7 @@ export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 		private $projectData: IProjectData,
 		private $projectDataService: IProjectDataService,
 		private $devicePlatformsConstants: Mobile.IDevicePlatformsConstants,
+		private $gradleBuildArgsService: IGradleBuildArgsService,
 		private $errors: IErrors,
 		private $filesHashService: IFilesHashService,
 		public $hooksService: IHooksService,
@@ -812,10 +814,8 @@ export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 			});
 			localArgs.push(...additionalArgs);
 		}
+		localArgs.push(...this.$gradleBuildArgsService.getBuildLoggingArgs());
 
-		if (this.$logger.getLevel() === "INFO") {
-			localArgs.push("--info");
-		}
 
 		const opts: any = {
 			cwd: pluginBuildSettings.pluginDir,

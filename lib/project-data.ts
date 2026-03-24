@@ -90,7 +90,6 @@ export class ProjectData implements IProjectData {
 	public appResourcesDirectoryPath: string;
 	public dependencies: any;
 	public devDependencies: IStringDictionary;
-	public ignoredDependencies: string[];
 	public projectType: string;
 	public androidManifestPath: string;
 	public infoPlistPath: string;
@@ -180,7 +179,6 @@ export class ProjectData implements IProjectData {
 			this.dependencies = packageJsonData.dependencies;
 			this.devDependencies = packageJsonData.devDependencies;
 			this.projectType = this.getProjectType();
-			this.ignoredDependencies = nsConfig?.ignoredNativeDependencies;
 			this.appDirectoryPath = this.getAppDirectoryPath();
 			this.appResourcesDirectoryPath = this.getAppResourcesDirectoryPath();
 			this.androidManifestPath = this.getPathToAndroidManifest(
@@ -357,6 +355,18 @@ export class ProjectData implements IProjectData {
 		}
 
 		return identifier;
+	}
+
+	getIgnoredDependencies(platform: string) {
+		let ignoredNativeDependencies = this.nsConfig?.ignoredNativeDependencies ?? [];
+		if (platform === constants.PlatformTypes.visionos) {
+			ignoredNativeDependencies = ignoredNativeDependencies.concat(this.nsConfig?.visionos?.ignoredNativeDependencies ?? [])
+		} else if (platform === constants.PlatformTypes.ios) {
+			ignoredNativeDependencies = ignoredNativeDependencies.concat(this.nsConfig?.ios?.ignoredNativeDependencies ?? [])
+		} else if (platform === constants.PlatformTypes.android) {
+			ignoredNativeDependencies = ignoredNativeDependencies.concat(this.nsConfig?.android?.ignoredNativeDependencies ?? [])
+		}
+		return ignoredNativeDependencies;
 	}
 
 	private getProjectType(): string {

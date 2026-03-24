@@ -57,7 +57,6 @@ export class GradleBuildArgsService implements IGradleBuildArgsService {
 		this.$projectData.initializeProjectData(buildData.projectDir);
 
 		args.push(
-			`--stacktrace`,
 			`-PcompileSdk=${toolsInfo.compileSdkVersion}`,
 			`-PtargetSdk=${toolsInfo.targetSdkVersion}`,
 			`-PbuildToolsVersion=${toolsInfo.buildToolsVersion}`,
@@ -92,18 +91,23 @@ export class GradleBuildArgsService implements IGradleBuildArgsService {
 				`-PksPassword=${buildData.keyStorePassword}`
 			);
 		}
+		console.log('getBuildTaskArgs', args);
 
 		return args;
 	}
 
-	private getBuildLoggingArgs(): string[] {
+	public getBuildLoggingArgs(): string[] {
 		const args = [];
 
 		const logLevel = this.$logger.getLevel();
 		if (logLevel === LoggerLevel.TRACE) {
+			args.push("--stacktrace");
 			args.push("--debug");
 		} else if (logLevel === LoggerLevel.DEBUG) {
+			args.push("--stacktrace");
 			args.push("--info");
+		} else if (logLevel === LoggerLevel.INFO) {
+			args.push("--quiet");
 		}
 
 		return args;

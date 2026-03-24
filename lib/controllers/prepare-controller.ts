@@ -407,7 +407,7 @@ export class PrepareController extends EventEmitter {
 		const dependencies = this.$nodeModulesDependenciesBuilder
 			.getProductionDependencies(
 				projectData.projectDir,
-				projectData.ignoredDependencies,
+				projectData.getIgnoredDependencies(platformData.platformNameLowerCase),
 			)
 			.filter((dep) => dep.nativescript);
 		const pluginsNativeDirectories = dependencies.map((dep) =>
@@ -457,7 +457,7 @@ export class PrepareController extends EventEmitter {
 		);
 
 
-		const {hooks, ignoredNativeDependencies, webpackPackageName, webpackConfigPath, appResourcesPath, buildPath, appPath, ...nsConfig} = this.$projectConfigService.readConfig(
+		const {hooks, webpackPackageName, webpackConfigPath, appResourcesPath, buildPath, appPath, ...nsConfig} = this.$projectConfigService.readConfig(
 			projectData.projectDir
 		);
 

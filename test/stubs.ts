@@ -654,7 +654,6 @@ export class ProjectConfigServiceStub implements IProjectConfigService {
 }
 
 export class ProjectDataStub implements IProjectData {
-	ignoredDependencies?: string[];
 	initialized?: boolean;
 	packageJsonData: any;
 	projectDir: string;
@@ -662,6 +661,10 @@ export class ProjectDataStub implements IProjectData {
 	webpackConfigPath: string;
 	bundlerConfigPath: string;
 	bundler: BundlerType;
+
+	getIgnoredDependencies(platform: string): string[] {
+		return [];
+	}
 
 	get platformsDir(): string {
 		return (
