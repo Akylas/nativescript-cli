@@ -908,6 +908,7 @@ interface IWatchAppJSONConfig {
 	basedir?: string;
 	infoPlistPath?: string;
 	xcprivacyPath?: string;
+	entitlements?: string;
 	importSourcesFromMainFolder?: boolean;
 	importResourcesFromMainFolder?: boolean;
 	resources?: string[];
