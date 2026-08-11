@@ -227,9 +227,9 @@ injector.registerCommand("run|visionos", RunVisionOSCommand);
 /**
  * Runs the Mac Catalyst build of the app on this machine.
  */
-export class RunMacOSCommand extends RunIosCommand {
+export class RunCatalystCommand extends RunIosCommand {
 	public get platform(): string {
-		return this.$devicePlatformsConstants.macOS;
+		return this.$devicePlatformsConstants.Catalyst;
 	}
 
 	constructor(
@@ -251,4 +251,4 @@ export class RunMacOSCommand extends RunIosCommand {
 	}
 }
 
-injector.registerCommand("run|macos", RunMacOSCommand);
+injector.registerCommand("run|catalyst", RunCatalystCommand);
