@@ -79,7 +79,10 @@ const getPlatformSdkName = (buildData: IBuildData): string => {
 	const forDevice =
 		!buildData || buildData.buildForDevice || buildData.buildForAppStore;
 
-	if (buildData && (<{ catalyst?: boolean }>buildData).catalyst) {
+	if (
+		buildData &&
+		injector.resolve("devicePlatformsConstants").isCatalyst(buildData.platform)
+	) {
 		return CatalystPlatformSdkName;
 	}
 
@@ -160,12 +163,16 @@ export class IOSProjectService
 			(this._platformsDirCache !== projectData.platformsDir ||
 				this._platformOverrideCache !== currentOverride)
 		) {
-			const platform = this.$mobileHelper.normalizePlatformName(
+			const requestedPlatform = this.$mobileHelper.normalizePlatformName(
 				this.$options.platformOverride ?? this.$devicePlatformsConstants.iOS,
 			);
+			// Mac Catalyst keeps every iOS convention; only the platform root differs.
+			const platform = this.$mobileHelper.isCatalystPlatform(requestedPlatform)
+				? this.$devicePlatformsConstants.iOS
+				: requestedPlatform;
 			const projectRoot = this.$options.hostProjectPath
 				? this.$options.hostProjectPath
-				: path.join(projectData.platformsDir, platform.toLowerCase());
+				: path.join(projectData.platformsDir, requestedPlatform.toLowerCase());
 			const runtimePackage = this.$projectDataService.getRuntimePackage(
 				projectData.projectDir,
 				platform.toLowerCase() as constants.SupportedPlatform,
@@ -192,10 +199,12 @@ export class IOSProjectService
 				getValidBuildOutputData: (
 					buildOptions: IBuildData,
 				): IValidBuildOutputData => {
+					// Mac Catalyst produces a .app, never an .ipa.
 					const forDevice =
-						!buildOptions ||
-						!!buildOptions.buildForDevice ||
-						!!buildOptions.buildForAppStore;
+						!this.$mobileHelper.isCatalystPlatform(requestedPlatform) &&
+						(!buildOptions ||
+							!!buildOptions.buildForDevice ||
+							!!buildOptions.buildForAppStore);
 					if (forDevice) {
 						const ipaFileName = _.find(
 							this.$fs.readDirectory(
@@ -460,7 +469,7 @@ export class IOSProjectService
 			this.emit(constants.BUILD_OUTPUT_EVENT_NAME, data);
 		};
 
-		if (buildData.catalyst) {
+		if (this.$devicePlatformsConstants.isCatalyst(buildData.platform)) {
 			// Signing is handled by `-allowProvisioningUpdates`: Mac Catalyst needs a
 			// macOS provisioning profile, which the iOS signing service cannot pick.
 			await attachAwaitDetach(
@@ -1496,10 +1505,7 @@ export class IOSProjectService
 	}
 
 	private validateFramework(libraryPath: string): void {
-		let infoPlistPath = path.join(
-			libraryPath,
-			constants.INFO_PLIST_FILE_NAME,
-		);
+		let infoPlistPath = path.join(libraryPath, constants.INFO_PLIST_FILE_NAME);
 		if (!this.$fs.exists(infoPlistPath)) {
 			infoPlistPath = path.join(
 				libraryPath,
@@ -1512,7 +1518,6 @@ export class IOSProjectService
 					libraryPath,
 				);
 			}
-			
 		}
 
 		const plistJson = this.$plistParser.parseFileSync(infoPlistPath);
