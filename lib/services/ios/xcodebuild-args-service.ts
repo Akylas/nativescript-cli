@@ -38,10 +38,7 @@ export class XcodebuildArgsService implements IXcodebuildArgsService {
 		projectData: IProjectData,
 		buildConfig: IBuildConfig,
 	): string[] {
-		// Mac Catalyst is a variant of the iOS platform rather than a platform of
-		// its own: the same target is rebuilt against the macOS SDK with the
-		// `-macabi` triple. `SUPPORTS_MACCATALYST` has to be forced because the
-		// runtime template only enables the legacy `SUPPORTS_UIKITFORMAC` alias.
+		// Forced because the runtime template only sets the legacy UIKITFORMAC alias.
 		return [
 			"-destination",
 			"platform=macOS,variant=Mac Catalyst",

@@ -141,6 +141,8 @@ interface INsConfigIOS extends INsConfigPlaform {
 
 interface INSConfigVisionOS extends INsConfigIOS {}
 
+interface INSConfigMacOS extends INsConfigIOS {}
+
 interface INsConfigAndroid extends INsConfigPlaform {
 	v8Flags?: string;
 
@@ -210,6 +212,7 @@ interface INsConfig {
 	ios?: INsConfigIOS;
 	android?: INsConfigAndroid;
 	visionos?: INSConfigVisionOS;
+	macos?: INSConfigMacOS;
 	ignoredNativeDependencies?: string[];
 	hooks?: INsConfigHooks[];
 	projectName?: string;
@@ -659,10 +662,6 @@ interface IiOSBuildConfig
 	 * Code sign identity used for build. If not set iPhone Developer is used as a default when building for device.
 	 */
 	codeSignIdentity?: string;
-	/**
-	 * Build a native macOS app with Mac Catalyst instead of an iOS app.
-	 */
-	catalyst?: boolean;
 }
 
 /**

@@ -625,6 +625,10 @@ export class ProjectDataService implements IProjectDataService {
 		projectDir: string,
 		platform: constants.SupportedPlatform,
 	): IBasePluginData {
+		// Mac Catalyst has no runtime of its own; it uses iOS.
+		if (platform === constants.PlatformTypes.macos) {
+			platform = constants.PlatformTypes.ios;
+		}
 		let packageName: string[] = [];
 		if (platform === constants.PlatformTypes.ios) {
 			packageName.push(this.$projectData.nsConfig.ios?.runtimePackageName, constants.SCOPED_IOS_RUNTIME_NAME, constants.TNS_IOS_RUNTIME_NAME);
