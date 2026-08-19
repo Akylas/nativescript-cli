@@ -9,6 +9,7 @@ import {
 import { IAndroidBuildData } from "../../definitions/build";
 import { IChildProcess } from "../../common/declarations";
 import { injector } from "../../common/yok";
+import { getDevicesAbis } from "./devices-abis";
 
 export class GradleBuildService
 	extends EventEmitter
@@ -31,18 +32,10 @@ export class GradleBuildService
 			buildData
 		);
 		if (buildData.buildFilterDevicesArch) {
-			let devices = this.$devicesService.getDevicesForPlatform(
-				buildData.platform
-			);
-			if (buildData.device) {
-				devices = devices.filter((d) => d.deviceInfo.identifier === buildData.device);
-			}
-			 else if (buildData.emulator) {
-				devices = devices.filter((d) => d.isEmulator);
-			}
-			const abis = devices
-				.map((d) => d.deviceInfo.abis.filter((a) => !!a && a.length)[0])
-				.filter((a) => !!a);
+			const abis = getDevicesAbis(this.$devicesService, buildData.platform, {
+				device: buildData.device,
+				emulator: buildData.emulator,
+			});
 			if (
 				abis.length > 0 &&
 				buildTaskArgs.findIndex((b) => b.startsWith("-PabiFilters")) === -1

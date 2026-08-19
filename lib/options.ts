@@ -243,6 +243,11 @@ export class Options {
 			},
 			aab: { type: OptionType.Boolean, hasSensitiveValue: false },
 			filterDevicesArch: { type: OptionType.Boolean, hasSensitiveValue: false },
+			filterPluginsDevicesArch: {
+				type: OptionType.Boolean,
+				default: false,
+				hasSensitiveValue: false,
+			},
 			performance: { type: OptionType.Object, hasSensitiveValue: true },
 			appleApplicationSpecificPassword: {
 				type: OptionType.String,

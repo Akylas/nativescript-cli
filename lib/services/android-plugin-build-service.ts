@@ -65,6 +65,8 @@ export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 		private $watchIgnoreListService: IWatchIgnoreListService,
 	) {}
 
+	private static ABI_FILTERS_BUILD_DATA_KEY = "__abiFilters";
+
 	private static MANIFEST_ROOT = {
 		$: {
 			"xmlns:android": "http://schemas.android.com/apk/res/android",
@@ -237,6 +239,16 @@ export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 			shortPluginName,
 		);
 
+		// the aar of a plugin built for a subset of the ABIs is not the aar of the
+		// same sources built for another subset, so the ABIs take part in the
+		// decision to rebuild - the sources alone would not change when a device
+		// with another ABI joins the run.
+		if (options.abiFilters && options.abiFilters.length) {
+			pluginSourceFileHashesInfo[
+				AndroidPluginBuildService.ABI_FILTERS_BUILD_DATA_KEY
+			] = options.abiFilters.join(",");
+		}
+
 		const shouldBuildAar = await this.shouldBuildAar({
 			manifestFilePath,
 			androidSourceDirectories,
@@ -269,6 +281,7 @@ export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 			await this.buildPlugin({
 				gradlePath: options.gradlePath,
 				gradleArgs,
+				abiFilters: options.abiFilters,
 				pluginDir: pluginTempDir,
 				pluginName: options.pluginName,
 				projectDir: options.projectDir,
@@ -869,6 +882,20 @@ export class AndroidPluginBuildService implements IAndroidPluginBuildService {
 		}
 		localArgs.push(...this.$gradleBuildArgsService.getBuildLoggingArgs());
 
+		// nothing in the gradle files generated here acts on `abiFilters` - it is
+		// passed for a plugin whose own include.gradle reads it to narrow a long
+		// native build down. An explicit `-PabiFilters` in the gradle args wins.
+		if (
+			pluginBuildSettings.abiFilters &&
+			pluginBuildSettings.abiFilters.length &&
+			!(pluginBuildSettings.gradleArgs || []).some(
+				(arg) => arg.indexOf("-PabiFilters") !== -1
+			)
+		) {
+			localArgs.push(
+				`-PabiFilters=${pluginBuildSettings.abiFilters.join(",")}`
+			);
+		}
 
 		const opts: any = {
 			cwd: pluginBuildSettings.pluginDir,

@@ -582,6 +582,13 @@ interface IEmbedOptions {
 }
 
 interface IAndroidOptions extends IEmbedOptions {
+	/**
+	 * When true, the same ABIs are passed to the gradle build of every plugin
+	 * that is built from source. Off by default - the CLI's own plugin gradle
+	 * files ignore the property, only a plugin acting on it in its
+	 * `include.gradle` gains anything from it.
+	 */
+	filterPluginsDevicesArch: boolean;
 	gradlePath: string;
 	gradleFlavor: string;
 	gradleArgs: string[];
