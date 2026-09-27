@@ -1260,6 +1260,13 @@ task buildMetadata(type: BuildToolTask) {
 
     inputs.files("$MDG_JAVA_DEPENDENCIES")
 
+    // ...and the JARS it names. That file holds PATHS, which do not change when a library's
+    // CONTENT does, so on its own this task stays UP-TO-DATE across a dependency rebuild and
+    // ships the previous run's metadata tree. The runtime then resolves a method against a
+    // signature the class no longer has, and the app dies with a NoSuchMethodError quoting a
+    // descriptor that exists nowhere - with the correct class sitting right there in the APK.
+    inputs.dir(extractedDependenciesDir).withPropertyName("dependencyJars")
+
     // make MDG aware of whitelist.mdg and blacklist.mdg files
     // inputs.files(project.fileTree(dir: "$rootDir", include: "**/*.mdg"))
     // use explicit inputs as the above makes the whole build-tools directory an input!
