@@ -16,6 +16,11 @@ import {
 	ModuleRegistry,
 	PublicApiBuilder,
 } from "./contracts";
+import type {
+	DeferredCommandOptions,
+	DeferredCommandRejection,
+	DeferredCommandResult,
+} from "./contracts";
 
 /**
  * The legacy global facade binding. New code should obtain the container via
@@ -23,6 +28,10 @@ import {
  * every legacy member on it is individually marked @deprecated.
  */
 export let injector: IInjector;
+
+function rejected(rejection: DeferredCommandRejection): DeferredCommandResult {
+	return { registered: false, rejection };
+}
 
 function forEachName(names: any, action: (name: string) => void): void {
 	if (_.isString(names)) {
@@ -87,12 +96,22 @@ export class Yok extends Injector implements IInjector {
 	 * registered, not because child requires ran out of order.
 	 */
 	private synthesizedParents = new Set<string>();
+	/**
+	 * Parents whose record is only the placeholder requireCommand creates so a
+	 * child's module can be loaded through the parent name. The dispatcher is
+	 * meant to replace it once that module registers itself.
+	 */
+	private placeholderParents = new Set<string>();
 	private KEY_COMMANDS_NAMESPACE: string = "keyCommands";
-	private hierarchicalCommands: IDictionary<string[]> = {};
+	// Keyed by command names, which extensions choose freely: a null prototype
+	// keeps a name like 'constructor' from reading back as an inherited member.
+	private hierarchicalCommands: IDictionary<string[]> = Object.create(null);
+	/** Deferred command name -> the owner that claimed it first. */
+	private deferredCommandOwners: IDictionary<string> = Object.create(null);
 
 	/**
-	 * @deprecated Path-based command registration; slated for replacement by
-	 * manifest-declared commands.
+	 * @deprecated Path-based command registration; use registerDeferredCommand,
+	 * which routes without loading and reports conflicts structurally.
 	 */
 	public requireCommand(names: any, file: string): void {
 		forEachName(names, (commandName) => {
@@ -126,6 +145,7 @@ export class Yok extends Injector implements IInjector {
 				commands.length > 1 &&
 				!this.has(this.createCommandName(commands[0]))
 			) {
+				this.placeholderParents.add(commands[0]);
 				this.require(this.createCommandName(commands[0]), file);
 				if (commands[1] && !commandName.match(/\|\*/)) {
 					this.require(this.createCommandName(commandName), file);
@@ -136,6 +156,100 @@ export class Yok extends Injector implements IInjector {
 				this.require(this.createCommandName(commandName), file);
 			}
 		});
+	}
+
+	public registerDeferredCommand(
+		name: string,
+		options: DeferredCommandOptions,
+	): DeferredCommandResult {
+		if (name !== name.toLowerCase()) {
+			return rejected({
+				reason: "invalid-name",
+				detail:
+					`command names are matched in lower case, so '${name}' can never ` +
+					`be dispatched; declare it as '${name.toLowerCase()}'`,
+			});
+		}
+
+		const claimedBy = this.deferredCommandOwners[name];
+		if (claimedBy) {
+			return claimedBy === options.owner
+				? { registered: true }
+				: rejected({ reason: "claimed", owner: claimedBy });
+		}
+
+		const commandRecordName = this.createCommandName(name);
+		if (this.has(commandRecordName)) {
+			return rejected(
+				this.synthesizedParents.has(name)
+					? { reason: "subcommand-parent" }
+					: { reason: "built-in" },
+			);
+		}
+
+		const commands = name.split(CommandsDelimiters.HierarchicalCommand);
+		const parentCommandName = commands.length > 1 ? commands[0] : null;
+		if (
+			parentCommandName &&
+			this.has(this.createCommandName(parentCommandName)) &&
+			!this.synthesizedParents.has(parentCommandName) &&
+			!this.placeholderParents.has(parentCommandName)
+		) {
+			// Mirrors createHierarchicalCommand's refusal to overwrite a real
+			// command: no dispatcher gets created, so this name is unreachable.
+			return rejected({
+				reason: "parent-is-command",
+				parent: parentCommandName,
+			});
+		}
+
+		super.register({
+			provide: commandRecordName,
+			useLazyRequire: () => {
+				try {
+					options.load();
+				} catch (err) {
+					throw new Error(
+						`Unable to load command '${name}' of ${options.owner} from ` +
+							`${options.source}: ${err.message}`,
+					);
+				}
+
+				if (!this.hasResolver(commandRecordName)) {
+					throw new Error(
+						`Command '${name}' of ${options.owner} was not registered when ` +
+							`${options.source} loaded. The module must export a ` +
+							`defineCommand() definition or register the command itself.`,
+					);
+				}
+			},
+		});
+		this.deferredCommandOwners[name] = options.owner;
+
+		if (parentCommandName) {
+			const subCommandName = _.tail(commands).join(
+				CommandsDelimiters.HierarchicalCommand,
+			);
+
+			if (!this.hierarchicalCommands[parentCommandName]) {
+				this.hierarchicalCommands[parentCommandName] = [];
+			}
+
+			if (
+				!_.includes(
+					this.hierarchicalCommands[parentCommandName],
+					subCommandName,
+				)
+			) {
+				this.hierarchicalCommands[parentCommandName].push(subCommandName);
+			}
+
+			// The dispatcher routes off the recorded subcommand names alone, so
+			// reaching a sibling never loads this entry's module.
+			this.createHierarchicalCommand(parentCommandName, name);
+		}
+
+		return { registered: true };
 	}
 
 	/**
@@ -220,7 +334,7 @@ export class Yok extends Injector implements IInjector {
 			// Yok replaced the whole record on an allowed re-require, dropping any
 			// resolver and cached instances with it — preserved via remove().
 			this.remove(name);
-			this.register({
+			super.register({
 				provide: name,
 				useLazyRequire: () => require(dependencyPath),
 			});
@@ -239,7 +353,28 @@ export class Yok extends Injector implements IInjector {
 			this.register(this.createCommandName(name), resolver);
 
 			if (commands.length > 1) {
-				this.createHierarchicalCommand(commands[0]);
+				const parentCommandName = commands[0];
+				const subCommandName = _.tail(commands).join(
+					CommandsDelimiters.HierarchicalCommand,
+				);
+
+				if (!this.hierarchicalCommands[parentCommandName]) {
+					this.hierarchicalCommands[parentCommandName] = [];
+				}
+
+				// Guarded: the legacy flow reaches here twice for one command —
+				// requireCommand records the subcommand, then the required module
+				// registers itself through this method.
+				if (
+					!_.includes(
+						this.hierarchicalCommands[parentCommandName],
+						subCommandName,
+					)
+				) {
+					this.hierarchicalCommands[parentCommandName].push(subCommandName);
+				}
+
+				this.createHierarchicalCommand(parentCommandName, name);
 			}
 		});
 	}
@@ -322,7 +457,27 @@ export class Yok extends Injector implements IInjector {
 		}
 	}
 
-	private createHierarchicalCommand(name: string) {
+	private createHierarchicalCommand(name: string, triggeredBy?: string) {
+		if (
+			this.has(this.createCommandName(name)) &&
+			!this.synthesizedParents.has(name) &&
+			!this.placeholderParents.has(name)
+		) {
+			// Overwriting would make the registered command unreachable, which is
+			// strictly worse than leaving the subcommand unrouted.
+			const logger = this.get("logger", { optional: true });
+			if (logger) {
+				logger.warn(
+					`'${name}' is already registered as a command of its own, so no ` +
+						`subcommand dispatcher was created for it${
+							triggeredBy ? ` and '${triggeredBy}' cannot be reached` : ""
+						}. Rename one of the two.`,
+				);
+			}
+
+			return;
+		}
+
 		this.synthesizedParents.add(name);
 		const factory = () => {
 			return {
@@ -454,6 +609,18 @@ export class Yok extends Injector implements IInjector {
 
 		shared = shared === undefined ? true : shared;
 		if (_.isFunction(resolver)) {
+			if (resolver.length === 0 && !resolver.prototype) {
+				// A prototype-less zero-parameter function (an arrow factory) cannot
+				// be `new`ed and has no parameters to resolve, so annotate() would
+				// contribute nothing — register it as a plain factory.
+				super.register({
+					provide: nameOrProviders,
+					useFactory: <() => any>resolver,
+					shared,
+				});
+				return;
+			}
+
 			// Classes and factory functions alike: the legacy provider kind
 			// annotate()s the resolver and calls or news it by casing.
 			super.register({

@@ -12,6 +12,7 @@ import { OptionType } from "../lib/common/enums";
 import * as _ from "lodash";
 
 let isExecutionStopped = false;
+let warnings: string[] = [];
 
 function createTestInjector(): IInjector {
 	const testInjector = new Yok();
@@ -23,6 +24,11 @@ function createTestInjector(): IInjector {
 		setSettings: (settings: IConfigurationSettings): any => undefined,
 		getProfileDir: () => "profileDir",
 	});
+	testInjector.register("logger", {
+		warn: (message: string): void => {
+			warnings.push(message);
+		},
+	});
 
 	return testInjector;
 }
@@ -32,8 +38,7 @@ function createOptions(testInjector: IInjector): IOptions {
 	return options;
 }
 
-// TODO: Igor and Nathan will make this work again
-describe.skip("options", () => {
+describe("options", () => {
 	let testInjector: IInjector;
 	beforeEach(() => {
 		testInjector = createTestInjector();
@@ -48,6 +53,14 @@ describe.skip("options", () => {
 
 		testInjector.register("errors", errors);
 		isExecutionStopped = false;
+		warnings = [];
+		// The assertions below describe the hard-fail behavior, which is opt-in
+		// while validation is staged. The staging itself is covered separately.
+		process.env.NS_STRICT_OPTIONS = "error";
+	});
+
+	afterEach(() => {
+		delete process.env.NS_STRICT_OPTIONS;
 	});
 
 	describe("validateOptions", () => {
@@ -124,6 +137,24 @@ describe.skip("options", () => {
 			assert.isTrue(isExecutionStopped);
 		});
 
+		it("breaks execution when the timeout option has no value", () => {
+			process.argv.push("--timeout");
+			const options = createOptions(testInjector);
+			options.validateOptions();
+			process.argv.pop();
+			assert.isTrue(isExecutionStopped);
+		});
+
+		it("does not break execution when the timeout option has a value", () => {
+			process.argv.push("--timeout");
+			process.argv.push("500");
+			const options = createOptions(testInjector);
+			options.validateOptions();
+			process.argv.pop();
+			process.argv.pop();
+			assert.isFalse(isExecutionStopped);
+		});
+
 		it("breaks execution when valid option has value with spaces only", () => {
 			process.argv.push("--path");
 			process.argv.push("  ");
@@ -180,13 +211,13 @@ describe.skip("options", () => {
 
 		it("converts string value to array when option type is array", () => {
 			const options: any = createOptions(testInjector);
-			process.argv.push("--config");
+			process.argv.push("--test1");
 			process.argv.push("value");
 			options.validateOptions({ test1: { type: OptionType.Array } });
 			process.argv.pop();
 			process.argv.pop();
 			assert.isFalse(isExecutionStopped);
-			assert.deepStrictEqual(["value"], <any>options["config"]);
+			assert.deepStrictEqual(["value"], <any>options.argv.test1);
 		});
 
 		it("does not break execution when valid commandSpecificOptions are passed", () => {
@@ -212,9 +243,11 @@ describe.skip("options", () => {
 		});
 
 		it("breaks execution when valid array option has value with length 0", () => {
-			process.argv.push("--config");
+			process.argv.push("--test1");
 			const options = createOptions(testInjector);
-			options.validateOptions();
+			options.validateOptions({
+				test1: { type: OptionType.Array, hasSensitiveValue: false },
+			});
 			process.argv.pop();
 			assert.isTrue(isExecutionStopped);
 		});
@@ -306,6 +339,91 @@ describe.skip("options", () => {
 						"Dashed options (special-dashed-v) are added to yargs.argv in two ways: special-dashed-v and specialDashedV",
 				);
 			});
+
+			// vision-ng and friends are declared with a literal dashed key, so the
+			// camelCase spelling yargs derives has no declaration of its own.
+			_.each(["--vision-ng", "--visionNg"], (arg) => {
+				it(`does not break execution when ${arg} is passed`, () => {
+					process.argv.push(arg);
+					const options = createOptions(testInjector);
+					options.validateOptions();
+					process.argv.pop();
+					assert.isFalse(isExecutionStopped);
+					assert.isEmpty(warnings);
+				});
+			});
+		});
+
+		describe("does not report valid options", () => {
+			it("accepts a negated declared boolean", () => {
+				process.argv.push("--no-hmr");
+				const options = createOptions(testInjector);
+				options.validateOptions();
+				process.argv.pop();
+				assert.isFalse(isExecutionStopped);
+				assert.isEmpty(warnings);
+				assert.isFalse(<boolean>options.argv.hmr);
+			});
+
+			it("accepts dot-notation values of an object option", () => {
+				process.argv.push("--env.production");
+				process.argv.push("--env.sourceMap");
+				const options = createOptions(testInjector);
+				options.validateOptions();
+				process.argv.pop();
+				process.argv.pop();
+				assert.isFalse(isExecutionStopped);
+				assert.isEmpty(warnings);
+				assert.deepStrictEqual(options.argv.env, {
+					production: true,
+					sourceMap: true,
+				});
+			});
+		});
+
+		describe("staged reporting", () => {
+			it("warns instead of failing when an option is not supported", () => {
+				delete process.env.NS_STRICT_OPTIONS;
+				process.argv.push("--unknownOption");
+				const options = createOptions(testInjector);
+				options.validateOptions();
+				process.argv.pop();
+				assert.isFalse(isExecutionStopped);
+				assert.lengthOf(warnings, 1);
+				assert.include(warnings[0], "'unknownOption' is not supported");
+				assert.include(warnings[0], "NS_STRICT_OPTIONS=error");
+			});
+
+			it("fails when an option is not supported and NS_STRICT_OPTIONS=error", () => {
+				process.env.NS_STRICT_OPTIONS = "error";
+				process.argv.push("--unknownOption");
+				const options = createOptions(testInjector);
+				options.validateOptions();
+				process.argv.pop();
+				assert.isTrue(isExecutionStopped);
+				assert.isEmpty(warnings);
+			});
+
+			it("warns instead of failing when a string option has no value", () => {
+				delete process.env.NS_STRICT_OPTIONS;
+				process.argv.push("--path");
+				const options = createOptions(testInjector);
+				options.validateOptions();
+				process.argv.pop();
+				assert.isFalse(isExecutionStopped);
+				assert.lengthOf(warnings, 1);
+				assert.include(warnings[0], "'path' requires non-empty value");
+			});
+
+			it("reports an undeclared negated flag under the spelling that was used", () => {
+				delete process.env.NS_STRICT_OPTIONS;
+				process.argv.push("--no-something");
+				const options = createOptions(testInjector);
+				options.validateOptions();
+				process.argv.pop();
+				assert.lengthOf(warnings, 1);
+				assert.include(warnings[0], "'no-something' is not supported");
+			});
 		});
 	});
 
@@ -391,6 +509,7 @@ function createOptionsWithProfileDir(defaultProfileDir?: string): IOptions {
 	const testInjector = new Yok();
 	testInjector.register("errors", {});
 	testInjector.register("staticConfig", {});
+	testInjector.register("logger", { warn: (): void => undefined });
 	let valuePassedToSetSettings: string;
 	testInjector.register("settingsService", {
 		setSettings: (settings: IConfigurationSettings): any => {

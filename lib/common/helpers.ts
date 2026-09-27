@@ -362,6 +362,18 @@ export function toBoolean(str: any): boolean {
 	return !!(str && str.toString && str.toString().toLowerCase() === "true");
 }
 
+/**
+ * Reads an opt-in environment flag: any value other than empty / `0` /
+ * `false` / `off` / `no` turns it on.
+ */
+export function isTruthyEnvFlag(value: string | undefined): boolean {
+	if (typeof value !== "string") {
+		return false;
+	}
+	const v = value.trim().toLowerCase();
+	return !!v && v !== "0" && v !== "false" && v !== "off" && v !== "no";
+}
+
 export function block(operation: () => void): void {
 	if (isInteractive()) {
 		(<ReadStream>process.stdin).setRawMode(false);
@@ -536,9 +548,19 @@ export function decorateMethod(
 				const replacementMethods = _.filter(newMethods, (f) => _.isFunction(f));
 				if (replacementMethods.length > 0) {
 					hasBeenReplaced = true;
+					// Each link passes the args it was invoked with down the chain, so
+					// any middleware's next(...newArgs) — not just the innermost one's —
+					// is seen by the rest of the chain; next() with no arguments keeps
+					// the current args.
 					const chainedReplacementMethod = _.reduce(
 						replacementMethods,
-						(prev, next) => next.bind(next, args, prev),
+						(prev: Function, next: Function) =>
+							(...forwardedArgs: any[]) =>
+								next.call(
+									next,
+									forwardedArgs.length ? forwardedArgs : args,
+									prev,
+								),
 						sink.bind(this),
 					);
 					result = chainedReplacementMethod();
@@ -605,6 +627,7 @@ export function hook(commandName: string) {
 			return hooksService.executeBeforeHooks(
 				commandName,
 				prepareArguments(method, args, hooksService),
+				{ consumesMiddlewares: true },
 			);
 		},
 		async (method: any, self: any, resultPromise: any, args: any[]) => {

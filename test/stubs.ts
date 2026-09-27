@@ -386,9 +386,7 @@ export class ErrorsStub implements IErrors {
 	): void {}
 }
 
-export class PackageInstallationManagerStub
-	implements IPackageInstallationManager
-{
+export class PackageInstallationManagerStub implements IPackageInstallationManager {
 	clearInspectorCache(): void {
 		return undefined;
 	}
@@ -743,14 +741,12 @@ export class ProjectDataStub implements IProjectData {
 		return "app";
 	}
 
-	getBuildRelativeDirectoryPath(): string {
-		return "platforms";
+	public getBuildRelativeDirectoryPath(): string {
+		return constants.PLATFORMS_DIR_NAME;
 	}
 }
 
-export class AndroidPluginBuildServiceStub
-	implements IAndroidPluginBuildService
-{
+export class AndroidPluginBuildServiceStub implements IAndroidPluginBuildService {
 	buildAar(options: IPluginBuildOptions): Promise<boolean> {
 		return Promise.resolve(true);
 	}
@@ -956,6 +952,20 @@ export class ProjectDataServiceStub implements IProjectDataService {
 		return projectData;
 	}
 
+	getProjectDataFromContent(
+		packageJsonContent: string,
+		projectDir?: string,
+	): IProjectData {
+		const projectData = new ProjectDataStub();
+		projectData.initializeProjectDataFromContent();
+
+		return projectData;
+	}
+
+	getNsConfigDefaultContent(data?: Object): string {
+		return JSON.stringify({ ...data });
+	}
+
 	async getAssetsStructure(opts: IProjectDir): Promise<IAssetsStructure> {
 		return null;
 	}
@@ -1015,8 +1025,8 @@ export class ProjectTemplatesService implements IProjectTemplatesService {
 }
 
 export class HooksServiceStub implements IHooksService {
-	async executeBeforeHooks(commandName: string): Promise<void> {
-		return Promise.resolve();
+	async executeBeforeHooks(commandName: string): Promise<any[]> {
+		return Promise.resolve([]);
 	}
 
 	async executeAfterHooks(commandName: string): Promise<void> {
@@ -1326,9 +1336,7 @@ export class CommandsService implements ICommandsService {
 	}
 }
 
-export class AndroidResourcesMigrationServiceStub
-	implements IAndroidResourcesMigrationService
-{
+export class AndroidResourcesMigrationServiceStub implements IAndroidResourcesMigrationService {
 	canMigrate(platformString: string): boolean {
 		return true;
 	}
@@ -1342,9 +1350,7 @@ export class AndroidResourcesMigrationServiceStub
 	}
 }
 
-export class AndroidBundleValidatorHelper
-	implements IAndroidBundleValidatorHelper
-{
+export class AndroidBundleValidatorHelper implements IAndroidBundleValidatorHelper {
 	validateDeviceApiLevel(device: Mobile.IDevice, buildData: IBuildData): void {
 		return;
 	}

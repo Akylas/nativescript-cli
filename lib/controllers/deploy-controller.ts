@@ -1,11 +1,11 @@
 import * as _ from "lodash";
 import { injector } from "../common/yok";
 
-export class DeployController {
+export class DeployController implements IDeployController {
 	constructor(
 		private $deviceInstallAppService: IDeviceInstallAppService,
 		private $devicesService: Mobile.IDevicesService,
-		private $prepareController: IPrepareController
+		private $prepareController: IPrepareController,
 	) {}
 
 	public async deploy(data: IDeployData): Promise<void> {
@@ -14,7 +14,7 @@ export class DeployController {
 		const executeAction = async (device: Mobile.IDevice) => {
 			const deviceDescriptor = _.find(
 				deviceDescriptors,
-				(dd) => dd.identifier === device.deviceInfo.identifier
+				(dd) => dd.identifier === device.deviceInfo.identifier,
 			);
 			const prepareData = {
 				...deviceDescriptor.buildData,
@@ -23,11 +23,12 @@ export class DeployController {
 				},
 			};
 			await this.$prepareController.prepare(prepareData);
-			await deviceDescriptor.buildAction();
-			await this.$deviceInstallAppService.installOnDevice(device, {
-				...deviceDescriptor.buildData,
-				buildForDevice: !device.isEmulator,
-			});
+			const packageFilePath = await deviceDescriptor.buildAction();
+			await this.$deviceInstallAppService.installOnDevice(
+				device,
+				{ ...deviceDescriptor.buildData, buildForDevice: !device.isEmulator },
+				packageFilePath,
+			);
 		};
 
 		await this.$devicesService.execute(
@@ -36,8 +37,8 @@ export class DeployController {
 				_.some(
 					deviceDescriptors,
 					(deviceDescriptor) =>
-						deviceDescriptor.identifier === device.deviceInfo.identifier
-				)
+						deviceDescriptor.identifier === device.deviceInfo.identifier,
+				),
 		);
 	}
 }

@@ -19,6 +19,8 @@ import {
 } from "./common/declarations";
 import { IExtensionData } from "./common/definitions/extensibility";
 import { IApplePortalUserDetail } from "./services/apple-portal/definitions";
+import type { ProjectNameService } from "./contracts/project-name-service";
+import type { PackageManager } from "./contracts/package-manager";
 
 interface INodePackageManager {
 	/**
@@ -108,21 +110,8 @@ interface INodePackageManager {
 	getCachePath(): Promise<string>;
 }
 
-interface IPackageManager extends INodePackageManager {
-	/**
-	 * Gets the name of the package manager used for the current process.
-	 * It can be read from the user settings or by passing -- option.
-	 */
-	getPackageManagerName(): Promise<string>;
-
-	/**
-	 * Gets the version corresponding to the tag for the package
-	 * @param {string} packageName The name of the package.
-	 * @param {string} tag The tag which we need the version of.
-	 * @returns {string} The version corresponding to the tag
-	 */
-	getTagVersion(packageName: string, tag: string): Promise<string>;
-}
+/** @deprecated Kept so existing annotations compile; use the {@link PackageManager} contract. */
+interface IPackageManager extends PackageManager {}
 
 interface IPerformanceService {
 	// Will process the data based on the command options (--performance flag and user-reporting setting)
@@ -505,7 +494,8 @@ interface IStaticConfig extends Config.IStaticConfig {}
 interface IConfiguration extends Config.IConfig {
 	ANDROID_DEBUG_UI: string;
 	USE_POD_SANDBOX: boolean;
-	GA_TRACKING_ID: string;
+	GA_MEASUREMENT_ID: string;
+	GA_API_SECRET: string;
 }
 
 interface IApplicationPackage {
@@ -590,6 +580,10 @@ interface IAndroidOptions extends IEmbedOptions {
 	 */
 	filterPluginsDevicesArch: boolean;
 	gradlePath: string;
+	/**
+	 * The product flavor to build, when the app declares any. `--gradleFlavor foo`
+	 * runs `assembleFooDebug` instead of `assembleDebug`.
+	 */
 	gradleFlavor: string;
 	gradleArgs: string[];
 	overrideRuntimeGradleFiles: boolean;
@@ -996,18 +990,8 @@ interface IVersionsService {
 /**
  * Describes methods for project name.
  */
-interface IProjectNameService {
-	/**
-	 * Ensures the passed project name is valid. If the project name is not valid prompts for actions.
-	 * @param {string} projectName project name to be checked.
-	 * @param {IOptions} validateOptions current command options.
-	 * @return {Promise<string>} returns the selected name of the project.
-	 */
-	ensureValidName(
-		projectName: string,
-		validateOptions?: { force: boolean },
-	): Promise<string>;
-}
+/** @deprecated Kept so existing annotations compile; use the {@link ProjectNameService} contract. */
+interface IProjectNameService extends ProjectNameService {}
 
 /**
  * Describes options that can be passed to xcprojService.verifyXcproj method.
@@ -1191,10 +1175,6 @@ interface IAssetsGenerationService {
 interface IRuntimeGradleVersions {
 	gradleVersion?: string;
 	gradleAndroidPluginVersion?: string;
-}
-
-interface INetworkConnectivityValidator {
-	validate(): Promise<void>;
 }
 
 interface IPlatformValidationService {

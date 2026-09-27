@@ -1,13 +1,10 @@
 import { isInteractive } from "../common/helpers";
-import { IProjectNameService } from "../declarations";
 import { IErrors } from "../common/declarations";
 import * as _ from "lodash";
+import { ProjectNameService } from "../contracts/project-name-service";
 import { injector } from "../common/yok";
-import { ProjectNameService as ProjectNameServiceContract } from "../contracts/project-name-service";
 
-export class ProjectNameServiceImpl
-	implements IProjectNameService, ProjectNameServiceContract
-{
+export class ProjectNameServiceImpl implements ProjectNameService {
 	constructor(
 		private $projectNameValidator: IProjectNameValidator,
 		private $errors: IErrors,

@@ -31,11 +31,13 @@ declare global {
 	interface IDeviceInstallAppService {
 		installOnDevice(
 			device: Mobile.IDevice,
-			buildData: IBuildData
+			buildData: IBuildData,
+			packageFile?: string,
 		): Promise<void>;
 		installOnDeviceIfNeeded(
 			device: Mobile.IDevice,
-			buildData: IBuildData
+			buildData: IBuildData,
+			packageFile?: string,
 		): Promise<void>;
 		shouldInstall(
 			device: Mobile.IDevice,

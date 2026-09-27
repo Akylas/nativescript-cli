@@ -45,6 +45,7 @@ Start a default emulator if none are running, or run application on all connecte
 * `--aab` - Specifies that the command will produce and deploy an Android App Bundle.
 * `--no-filter-devices-arch` - If set, builds every ABI instead of only the ones the connected devices report. The narrowing only applies when the app's gradle configuration acts on the `abiFilters` property, and `ns build` never narrows.
 * `--filter-plugins-devices-arch` - If set, the ABIs of the connected devices are also passed to the gradle build of every plugin built from source. Nothing in the gradle files the CLI generates for a plugin acts on them - this is for a plugin whose own `include.gradle` reads the `abiFilters` property to shorten a long native build.
+* `--gradleFlavor` - Builds the given product flavor, when the app declares any. `--gradleFlavor foo` runs the `assembleFooDebug`/`assembleFooRelease` gradle task instead of `assembleDebug`/`assembleRelease`.
 * `--force` - If set, skips the application compatibility checks and forces `npm i` to ensure all dependencies are installed. Otherwise, the command will check the application compatibility with the current CLI version and could fail requiring `ns migrate`.
 
 <% if(isHtml) { %>

@@ -115,11 +115,14 @@ export class GradleBuildArgsService implements IGradleBuildArgsService {
 
 	private getBuildTaskName(buildData: IAndroidBuildData): string {
 		let baseTaskName = buildData.androidBundle ? "bundle" : "assemble";
-		if (buildData.gradleFlavor) {
-			baseTaskName +=
-				buildData.gradleFlavor[0].toUpperCase() +
-				buildData.gradleFlavor.slice(1);
+
+		// a product flavor sits between the task and the build type -
+		// `assembleFooRelease`, `bundleFooDebug`
+		const flavor = buildData.gradleFlavor;
+		if (flavor) {
+			baseTaskName += flavor[0].toUpperCase() + flavor.slice(1);
 		}
+
 		const buildTaskName = buildData.release
 			? `${baseTaskName}${Configurations.Release}`
 			: `${baseTaskName}${Configurations.Debug}`;

@@ -20,9 +20,7 @@ function createTestInjector(projectDir: string = projectFolder): IInjector {
 		initializeProjectData: () => {
 			/* empty */
 		},
-		getBuildRelativeDirectoryPath: () => {
-			/* empty */
-		},
+		getBuildRelativeDirectoryPath: () => "platforms",
 		dependencies: {
 			"@nativescript/core": "next",
 		},

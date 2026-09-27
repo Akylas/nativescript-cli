@@ -2,9 +2,15 @@ import { annotate } from "../helpers";
 import { getContractName } from "./contract";
 import { resolveForwardRef } from "./forward-ref";
 import { runInInjectionContext } from "./inject";
-import type { Provider, ProviderToken, Type } from "./providers";
+import { getInjectionTokenName } from "./injection-token";
+import type {
+	InternalProvider,
+	Provider,
+	ProviderToken,
+	Type,
+} from "./providers";
 
-type TokenKey = string | Function;
+type TokenKey = string | object;
 
 export interface InjectOptions {
 	/** Resolve to null instead of throwing when the token is not registered. */
@@ -131,7 +137,7 @@ export class Injector {
 	}
 
 	/** Merge-mutate: re-registering a key updates the existing record in place. */
-	public register(providers: Provider | Provider[]): void {
+	public register(providers: InternalProvider | InternalProvider[]): void {
 		const list = Array.isArray(providers) ? providers : [providers];
 		for (const provider of list) {
 			const keys = this.keysFor(provider.provide);
@@ -170,6 +176,16 @@ export class Injector {
 
 	public has(token: ProviderToken): boolean {
 		return !!this.findRecord(token);
+	}
+
+	/**
+	 * Whether the token can actually produce a value. A record carrying only a
+	 * pending loader answers `has()` but resolves to an error, so the deferred
+	 * paths use this to tell "loaded and registered" from "loaded and silent".
+	 */
+	protected hasResolver(token: ProviderToken): boolean {
+		const found = this.findRecord(token);
+		return !!found && found.record.kind !== undefined;
 	}
 
 	/** First cached instance for a token, without triggering construction. */
@@ -226,11 +242,14 @@ export class Injector {
 		if (typeof token === "string") {
 			return [normalizeName(token)];
 		}
-		const name = getContractName(token);
+		const name = tokenNameOf(token);
 		return name !== undefined ? [token, name] : [token];
 	}
 
-	private applyProvider(record: IProviderRecord, provider: Provider): void {
+	private applyProvider(
+		record: IProviderRecord,
+		provider: InternalProvider,
+	): void {
 		record.shared = provider.shared === undefined ? true : provider.shared;
 
 		if ("useLazyRequire" in provider) {
@@ -276,7 +295,7 @@ export class Injector {
 		if (direct) {
 			return direct;
 		}
-		const name = getContractName(token);
+		const name = tokenNameOf(token);
 		return name !== undefined ? this.providers.get(name) : undefined;
 	}
 
@@ -394,9 +413,23 @@ function normalizeName(name: string): string {
 	return name[0] === "$" ? name.slice(1) : name;
 }
 
+/** The name a non-string token aliases in the legacy registry, if it has one. */
+function tokenNameOf(token: ProviderToken): string | undefined {
+	const injectionTokenName = getInjectionTokenName(token);
+	return injectionTokenName !== undefined
+		? injectionTokenName
+		: getContractName(token);
+}
+
 function displayNameOf(token: ProviderToken): string {
 	if (typeof token === "string") {
 		return normalizeName(token);
 	}
-	return getContractName(token) || token.name || "<anonymous class>";
+	const injectionTokenName = getInjectionTokenName(token);
+	if (injectionTokenName !== undefined) {
+		return `InjectionToken(${injectionTokenName})`;
+	}
+	return (
+		getContractName(token) || (<Function>token).name || "<anonymous class>"
+	);
 }

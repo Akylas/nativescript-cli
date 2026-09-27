@@ -17,10 +17,11 @@ export const TNS_CORE_THEME_NAME = "nativescript-theme-core";
 export const SCOPED_TNS_CORE_THEME_NAME = "@nativescript/theme";
 export const WEBPACK_PLUGIN_NAME = "@nativescript/webpack";
 export const RSPACK_PLUGIN_NAME = "@nativescript/rspack";
-// Project-relative directory the Vite bundler writes its build output to
-// before the CLI copies it into the platforms app folder. Mirrors the
-// default value computed in `@nativescript/vite`'s base configuration
-// (`process.env.NS_VITE_DIST_DIR || '.ns-vite-build'`).
+// Root of the project-relative directory the Vite bundler writes its build
+// output to before the CLI copies it into the platforms app folder. The CLI
+// stages each platform in its own subdirectory (`.ns-vite-build/<platform>`)
+// and tells `@nativescript/vite` where via `NS_VITE_DIST_DIR`; the package's
+// own fallback (`.ns-vite-build`) only applies to standalone `vite` runs.
 export const VITE_DIST_FOLDER_NAME = ".ns-vite-build";
 export const TNS_CORE_MODULES_WIDGETS_NAME = "tns-core-modules-widgets";
 export const UI_MOBILE_BASE_NAME = "@nativescript/ui-mobile-base";
@@ -35,7 +36,7 @@ export const ANDROID_DEVICE_APP_ROOT_TEMPLATE = `/data/data/%s/files`;
 export const NODE_MODULE_CACHE_PATH_KEY_NAME = "node-modules-cache-path";
 export const DEFAULT_APP_IDENTIFIER_PREFIX = "org.nativescript";
 export const LIVESYNC_EXCLUDED_DIRECTORIES = ["app_resources"];
-export const TESTING_FRAMEWORKS = ["jasmine", "mocha", "qunit"];
+export const TESTING_FRAMEWORKS = ["vitest", "jasmine", "mocha", "qunit"];
 export const TEST_RUNNER_NAME = "@nativescript/unit-test-runner";
 export const LIVESYNC_EXCLUDED_FILE_PATTERNS = ["**/*.js.map", "**/*.ts"];
 export const XML_FILE_EXTENSION = ".xml";

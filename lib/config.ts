@@ -14,7 +14,8 @@ export class Configuration implements IConfiguration {
 	DEBUG = false;
 	ANDROID_DEBUG_UI: string = null;
 	USE_POD_SANDBOX: boolean = false;
-	GA_TRACKING_ID: string = null;
+	GA_MEASUREMENT_ID: string = null;
+	GA_API_SECRET: string = null;
 	DISABLE_HOOKS: boolean = false;
 
 	/*don't require logger and everything that has logger as dependency in config.js due to cyclic dependency*/

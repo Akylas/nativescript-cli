@@ -1,7 +1,10 @@
+import type { InjectionToken } from "./injection-token";
+
 export type Type<T> = new (...args: any[]) => T;
 export type AbstractType<T> = abstract new (...args: any[]) => T;
 
-export type ProviderToken<T = any> = string | Type<T> | AbstractType<T>;
+export type ProviderToken<T = any> =
+	string | Type<T> | AbstractType<T> | InjectionToken<T>;
 
 interface IBaseProvider<T> {
 	provide: ProviderToken<T>;
@@ -37,7 +40,9 @@ export interface ILegacyClassProvider extends IBaseProvider<any> {
 
 /**
  * Deferred side-effect loader (Yok's `require(name, path)`): running it is
- * expected to register the real resolver onto this same record.
+ * expected to register the real resolver onto this same record. Container
+ * internals only — a record left with nothing but a loader resolves to an
+ * error, so it is deliberately kept out of `Provider`.
  */
 export interface ILazyRequireProvider extends IBaseProvider<any> {
 	useLazyRequire: () => void;
@@ -48,16 +53,18 @@ export type Provider<T = any> =
 	| IValueProvider<T>
 	| IFactoryProvider<T>
 	| ILazyClassProvider<T>
-	| ILegacyClassProvider
-	| ILazyRequireProvider;
+	| ILegacyClassProvider;
+
+/** The provider forms the container accepts, including the unpublished ones. */
+export type InternalProvider<T = any> = Provider<T> | ILazyRequireProvider;
 
 /** Enforces at compile time that the implementation satisfies the token. */
 export const provide = <T>(
-	token: AbstractType<T> | string,
+	token: AbstractType<T> | InjectionToken<T> | string,
 	impl: Type<T>,
 ): Provider<T> => ({ provide: token, useClass: impl });
 
 export const provideLazy = <T>(
-	token: AbstractType<T> | string,
+	token: AbstractType<T> | InjectionToken<T> | string,
 	load: () => Type<T>,
 ): Provider<T> => ({ provide: token, useLazyClass: load });

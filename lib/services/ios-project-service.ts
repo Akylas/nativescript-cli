@@ -6,7 +6,7 @@ import { Configurations } from "../common/constants";
 import * as helpers from "../common/helpers";
 import { attachAwaitDetach } from "../common/helpers";
 import * as projectServiceBaseLib from "./platform-project-service-base";
-import { PlistSession, Reporter } from "plist-merge-patch";
+import { PlistSession, Reporter } from "../tools/plist-merge/plist-session";
 import { EOL } from "os";
 import * as plist from "plist";
 import * as fastGlob from "fast-glob";
@@ -105,6 +105,7 @@ const getConfigurationName = (release: boolean): string => {
 
 export class IOSProjectService
 	extends projectServiceBaseLib.PlatformProjectServiceBase
+	implements IPlatformProjectService<IOSBuildData, IOSPrepareData>
 {
 	private static IOS_PROJECT_NAME_PLACEHOLDER = "__PROJECT_NAME__";
 	private static IOS_PLATFORM_NAME = "ios";
@@ -432,10 +433,7 @@ export class IOSProjectService
 		return undefined;
 	}
 
-	public async cleanProject(
-		projectRoot: string,
-		projectData: IProjectData,
-	): Promise<void> {
+	public async cleanProject(projectRoot: string): Promise<void> {
 		return null;
 	}
 
@@ -1359,7 +1357,13 @@ export class IOSProjectService
 					constants.CONFIG_FILE_NAME_TS,
 				);
 				if (this.$fs.exists(pluginConfigPath)) {
-					const config = this.$projectConfigService.readConfig(plugin.fullPath);
+					// Plugin packages may ship compiled .js artifacts next to their
+					// .ts config; the dual-config warning is guidance for the user's
+					// own project and would be misleading here.
+					const config = this.$projectConfigService.readConfig(
+						plugin.fullPath,
+						{ suppressWarnings: true },
+					);
 					const packages = _.get(
 						config,
 						`${platformData.platformNameLowerCase}.SPMPackages`,
@@ -1602,14 +1606,12 @@ export class IOSProjectService
 		);
 		const platformData = this.getPlatformData(projectData);
 		const pbxProjPath = this.getPbxProjPath(projectData);
-		const addedExtensionsFromResources =
-			await this.$iOSExtensionsService.addExtensionsFromPath({
-				extensionsFolderPath: resorcesExtensionsPath,
-				projectData,
-				platformData,
-				pbxProjPath,
-			});
-		let addedExtensionsFromPlugins = false;
+		await this.$iOSExtensionsService.addExtensionsFromPath({
+			extensionsFolderPath: resorcesExtensionsPath,
+			projectData,
+			platformData,
+			pbxProjPath,
+		});
 		for (const pluginIndex in pluginsData) {
 			const pluginData = pluginsData[pluginIndex];
 			const pluginPlatformsFolderPath = pluginData.pluginPlatformsFolderPath(
@@ -1620,21 +1622,12 @@ export class IOSProjectService
 				pluginPlatformsFolderPath,
 				constants.NATIVE_EXTENSION_FOLDER,
 			);
-			const addedExtensionFromPlugin =
-				await this.$iOSExtensionsService.addExtensionsFromPath({
-					extensionsFolderPath: extensionPath,
-					projectData,
-					platformData,
-					pbxProjPath,
-				});
-			addedExtensionsFromPlugins =
-				addedExtensionsFromPlugins || addedExtensionFromPlugin;
-		}
-
-		if (addedExtensionsFromResources || addedExtensionsFromPlugins) {
-			this.$logger.warn(
-				"Let us know if there are other Extension features you'd like! https://github.com/NativeScript/NativeScript/issues",
-			);
+			await this.$iOSExtensionsService.addExtensionsFromPath({
+				extensionsFolderPath: extensionPath,
+				projectData,
+				platformData,
+				pbxProjPath,
+			});
 		}
 	}
 

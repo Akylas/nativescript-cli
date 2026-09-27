@@ -14,7 +14,7 @@ import {
 import { IAnalyticsService, IFileSystem } from "../../common/declarations";
 import { injector } from "../../common/yok";
 
-export class DeviceInstallAppService {
+export class DeviceInstallAppService implements IDeviceInstallAppService {
 	constructor(
 		private $analyticsService: IAnalyticsService,
 		private $buildArtifactsService: IBuildArtifactsService,
@@ -23,24 +23,25 @@ export class DeviceInstallAppService {
 		private $logger: ILogger,
 		private $mobileHelper: Mobile.IMobileHelper,
 		private $projectDataService: IProjectDataService,
-		private $platformsDataService: IPlatformsDataService
+		private $platformsDataService: IPlatformsDataService,
 	) {}
 
 	public async installOnDevice(
 		device: Mobile.IDevice,
-		buildData: IBuildData
+		buildData: IBuildData,
+		packageFile?: string,
 	): Promise<void> {
 		this.$logger.info(
-			`Installing on device ${device.deviceInfo.identifier}...`
+			`Installing on device ${device.deviceInfo.identifier}...`,
 		);
 
 		const platform = device.deviceInfo.platform.toLowerCase();
 		const projectData = this.$projectDataService.getProjectData(
-			buildData.projectDir
+			buildData.projectDir,
 		);
 		const platformData = this.$platformsDataService.getPlatformData(
 			platform,
-			projectData
+			projectData,
 		);
 
 		await this.$analyticsService.trackEventActionInGoogleAnalytics({
@@ -55,14 +56,16 @@ export class DeviceInstallAppService {
 			outputPath,
 			buildOutputOptions
 		);
-		let packageFile;
+		// prefer the package matching the device ABIs: with split APKs the
+		// package handed over by the build is only the most recent one
+		let matchingPackageFile: string;
 		if (packages.length === 1) {
 			// will always be the case on iOS
-			packageFile = packages.at(0).packageName;
+			matchingPackageFile = packages.at(0).packageName;
 		} else if (device.deviceInfo.abis) {
 			packages.find(({ packageName }) => {
 				if (device.deviceInfo.abis.some((abi) => packageName.includes(abi))) {
-					packageFile = packageName;
+					matchingPackageFile = packageName;
 					return true;
 				}
 			});
@@ -72,20 +75,21 @@ export class DeviceInstallAppService {
 				p.packageName.includes("universal")
 			);
 			if (universalPackage) {
-				packageFile = universalPackage.packageName;
+				matchingPackageFile = universalPackage.packageName;
 			}
 		}
+		packageFile = matchingPackageFile || packageFile;
 
 		if (!packageFile) {
 			this.$logger.error(
-				`Could not find a package corresponding to the device with identifier '${device.deviceInfo.identifier}'.`
+				`Could not find a package corresponding to the device with identifier '${device.deviceInfo.identifier}'.`,
 			);
 			return;
 		}
 
 		await platformData.platformProjectService.cleanDeviceTempFolder(
 			device.deviceInfo.identifier,
-			projectData
+			projectData,
 		);
 
 		const appIdentifier = projectData.projectIdentifiers[platform];
@@ -95,7 +99,7 @@ export class DeviceInstallAppService {
 		await device.applicationManager.reinstallApplication(
 			appIdentifier,
 			packageFile,
-			buildData
+			buildData,
 		);
 
 		await this.updateHashesOnDevice({
@@ -109,40 +113,41 @@ export class DeviceInstallAppService {
 			await this.$buildInfoFileService.saveDeviceBuildInfo(
 				device,
 				projectData,
-				outputFilePath
+				outputFilePath,
 			);
 		}
 
 		this.$logger.info(
-			`Successfully installed on device with identifier '${device.deviceInfo.identifier} using package ${packageFile}'.`
+			`Successfully installed on device with identifier '${device.deviceInfo.identifier}' using package ${packageFile}.`,
 		);
 	}
 
 	public async installOnDeviceIfNeeded(
 		device: Mobile.IDevice,
-		buildData: IBuildData
+		buildData: IBuildData,
+		packageFile?: string,
 	): Promise<void> {
 		const shouldInstall = await this.shouldInstall(device, buildData);
 		if (shouldInstall) {
-			await this.installOnDevice(device, buildData);
+			await this.installOnDevice(device, buildData, packageFile);
 		}
 	}
 
 	public async shouldInstall(
 		device: Mobile.IDevice,
-		buildData: IBuildData
+		buildData: IBuildData,
 	): Promise<boolean> {
 		const projectData = this.$projectDataService.getProjectData(
-			buildData.projectDir
+			buildData.projectDir,
 		);
 		const platformData = this.$platformsDataService.getPlatformData(
 			device.deviceInfo.platform,
-			projectData
+			projectData,
 		);
 		const platform = device.deviceInfo.platform;
 		if (
 			!(await device.applicationManager.isApplicationInstalled(
-				projectData.projectIdentifiers[platform.toLowerCase()]
+				projectData.projectIdentifiers[platform.toLowerCase()],
 			))
 		) {
 			return true;
@@ -152,7 +157,7 @@ export class DeviceInstallAppService {
 			await this.$buildInfoFileService.getDeviceBuildInfo(device, projectData);
 		const localBuildInfo = this.$buildInfoFileService.getLocalBuildInfo(
 			platformData,
-			{ ...buildData, buildForDevice: !device.isEmulator }
+			{ ...buildData, buildForDevice: !device.isEmulator },
 		);
 
 		return (

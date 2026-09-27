@@ -168,10 +168,11 @@ export class ProjectData implements IProjectData {
 				nsConfig && nsConfig.projectName
 					? nsConfig.projectName
 					: this.$projectHelper.sanitizeName(path.basename(projectDir));
+			// read before `platformsDir`, which is derived from it
 			this.nsConfig = nsConfig;
 			this.platformsDir = path.join(
 				projectDir,
-				this.getBuildRelativeDirectoryPath()
+				this.getBuildRelativeDirectoryPath(),
 			);
 			this.projectFilePath = projectFilePath;
 			this.projectIdentifiers = this.initializeProjectIdentifiers(nsConfig);
@@ -277,18 +278,22 @@ export class ProjectData implements IProjectData {
 		// );
 	}
 
-	public getAppDirectoryPath(projectDir?: string): string {
-		const appRelativePath = this.getAppDirectoryRelativePath();
-
-		return this.resolveToProjectDir(appRelativePath, projectDir);
-	}
-
+	/**
+	 * Where the native projects are generated, relative to the project root.
+	 * `buildPath` in the project config overrides the default `platforms`.
+	 */
 	public getBuildRelativeDirectoryPath(): string {
 		if (this.nsConfig && this.nsConfig[constants.CONFIG_NS_BUILD_ENTRY]) {
 			return this.nsConfig[constants.CONFIG_NS_BUILD_ENTRY];
 		}
 
 		return constants.PLATFORMS_DIR_NAME;
+	}
+
+	public getAppDirectoryPath(projectDir?: string): string {
+		const appRelativePath = this.getAppDirectoryRelativePath();
+
+		return this.resolveToProjectDir(appRelativePath, projectDir);
 	}
 
 	public getAppDirectoryRelativePath(): string {

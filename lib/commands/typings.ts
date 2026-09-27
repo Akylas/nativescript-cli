@@ -160,13 +160,14 @@ export class TypingsCommand implements ICommand {
 			path.resolve(this.$projectData.projectDir, "typings", "android"),
 		);
 
-		const dtsGeneratorPath = this.$options.dtsGeneratorPath ?? path.resolve(
-			this.$projectData.projectDir,
-			this.$projectData.getBuildRelativeDirectoryPath(),
-			"android",
-			"build-tools",
-			"dts-generator.jar",
-		);
+		const dtsGeneratorPath =
+			this.$options.dtsGeneratorPath ??
+			path.resolve(
+				this.$projectData.platformsDir,
+				"android",
+				"build-tools",
+				"dts-generator.jar",
+			);
 		if (!this.$fs.exists(dtsGeneratorPath)) {
 			if (this.$options.dtsGeneratorPath) {
 				this.$logger.warn(
