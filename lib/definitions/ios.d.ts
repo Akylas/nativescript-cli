@@ -123,6 +123,7 @@ declare global {
 		getXcodeProjectArgs(
 			platformData: IPlatformData,
 			projectData: IProjectData,
+			catalyst?: boolean,
 		): string[];
 	}
 

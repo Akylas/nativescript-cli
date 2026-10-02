@@ -1864,6 +1864,27 @@ export class IOSProjectService
 		// mergeFiles keeps whichever value is already present, so the app's
 		// xcconfig is merged before any plugin's to make it authoritative: a
 		// plugin must not be able to dictate a setting the app has chosen.
+		// A Mac Catalyst build merges App_Resources/Catalyst/build.xcconfig first,
+		// so it overrides the iOS one it otherwise shares.
+		if (
+			this.$mobileHelper.isCatalystPlatform(
+				this.$options.platformOverride ?? "",
+			)
+		) {
+			const catalystXcconfigPath = path.join(
+				projectData.appResourcesDirectoryPath,
+				this.$devicePlatformsConstants.Catalyst,
+				BUILD_XCCONFIG_FILE_NAME,
+			);
+			if (this.$fs.exists(catalystXcconfigPath)) {
+				for (const pluginsXcconfigFilePath of pluginsXcconfigFilePaths) {
+					await this.$xcconfigService.mergeFiles(
+						catalystXcconfigPath,
+						pluginsXcconfigFilePath,
+					);
+				}
+			}
+		}
 		const appResourcesXcconfigPath = path.join(
 			projectData.appResourcesDirectoryPath,
 			this.getPlatformData(projectData).normalizedPlatformName,

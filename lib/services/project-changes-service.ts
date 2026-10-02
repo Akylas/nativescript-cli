@@ -170,6 +170,11 @@ export class ProjectChangesService implements IProjectChangesService {
 					path.join(platformResourcesDir, platformData.configurationFileName),
 					path.join(platformResourcesDir, "LaunchScreen.storyboard"),
 					path.join(platformResourcesDir, BUILD_XCCONFIG_FILE_NAME),
+					path.join(
+						projectData.appResourcesDirectoryPath,
+						this.$devicePlatformsConstants.Catalyst,
+						BUILD_XCCONFIG_FILE_NAME
+					),
 				]);
 			} else {
 				this._changesInfo.configChanged = this.filesChanged([
