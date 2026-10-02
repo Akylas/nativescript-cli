@@ -56,7 +56,7 @@ export class XcodebuildArgsService implements IXcodebuildArgsService {
 			.concat(
 				// the deployment target is re-added below, clamped to what Catalyst supports
 				this
-					.getXcodeProjectArgs(platformData, projectData)
+					.getXcodeProjectArgs(platformData, projectData, true)
 					.filter((arg) => !arg.startsWith("IPHONEOS_DEPLOYMENT_TARGET=")),
 			)
 			.concat(this.getCatalystDeploymentTargetArgs(projectData))
@@ -192,6 +192,7 @@ export class XcodebuildArgsService implements IXcodebuildArgsService {
 	public getXcodeProjectArgs(
 		platformData: IPlatformData,
 		projectData: IProjectData,
+		catalyst = false,
 	): string[] {
 		const xcworkspacePath = path.join(
 			platformData.projectRoot,
@@ -226,11 +227,13 @@ export class XcodebuildArgsService implements IXcodebuildArgsService {
 			);
 		}
 
-		const BUILD_SETTINGS_FILE_PATH = path.join(
-			projectData.appResourcesDirectoryPath,
-			platformData.normalizedPlatformName,
-			constants.BUILD_XCCONFIG_FILE_NAME,
-		);
+		const readBuildSetting = (propertyName: string) =>
+			this.readBuildSetting(
+				projectData,
+				platformData.normalizedPlatformName,
+				propertyName,
+				catalyst,
+			);
 
 		// Only include explicit properties from build.xcconfig
 		// Note: we could include entire file via -xcconfig flag
@@ -249,26 +252,17 @@ export class XcodebuildArgsService implements IXcodebuildArgsService {
 		// ref: https://forums.swift.org/t/xcode-26-unable-to-find-module-dependency/80516
 		const explicitModulesProperty = "SWIFT_ENABLE_EXPLICIT_MODULES";
 		const explicitModulesValue =
-			this.$xcconfigService.readPropertyValue(
-				BUILD_SETTINGS_FILE_PATH,
-				explicitModulesProperty,
-			) || "NO";
+			readBuildSetting(explicitModulesProperty) || "NO";
 		extraArgs.push(`${explicitModulesProperty}=${explicitModulesValue}`);
 
 		const deployTargetProperty = "IPHONEOS_DEPLOYMENT_TARGET";
-		const deployTargetVersion = this.$xcconfigService.readPropertyValue(
-			BUILD_SETTINGS_FILE_PATH,
-			deployTargetProperty,
-		);
+		const deployTargetVersion = readBuildSetting(deployTargetProperty);
 		if (deployTargetVersion) {
 			extraArgs.push(`${deployTargetProperty}=${deployTargetVersion}`);
 		}
 
 		const swiftUIBootProperty = "NS_SWIFTUI_BOOT";
-		const swiftUIBootValue = this.$xcconfigService.readPropertyValue(
-			BUILD_SETTINGS_FILE_PATH,
-			swiftUIBootProperty,
-		);
+		const swiftUIBootValue = readBuildSetting(swiftUIBootProperty);
 		if (swiftUIBootValue) {
 			extraArgs.push(`${swiftUIBootProperty}=${swiftUIBootValue}`);
 		}
@@ -277,10 +271,7 @@ export class XcodebuildArgsService implements IXcodebuildArgsService {
 		// development team when building for a device. Pass DEVELOPMENT_TEAM as a
 		// command-line build setting so it applies to SPM package targets too.
 		const developmentTeamProperty = "DEVELOPMENT_TEAM";
-		const developmentTeamValue = this.$xcconfigService.readPropertyValue(
-			BUILD_SETTINGS_FILE_PATH,
-			developmentTeamProperty,
-		);
+		const developmentTeamValue = readBuildSetting(developmentTeamProperty);
 		if (developmentTeamValue) {
 			extraArgs.push(`${developmentTeamProperty}=${developmentTeamValue}`);
 		}
@@ -296,6 +287,28 @@ export class XcodebuildArgsService implements IXcodebuildArgsService {
 		return ["-project", xcodeprojPath, ...extraArgs];
 	}
 
+	/** On Mac Catalyst, App_Resources/Catalyst/build.xcconfig overrides the iOS one. */
+	private readBuildSetting(
+		projectData: IProjectData,
+		platformName: string,
+		propertyName: string,
+		catalyst: boolean,
+	): string {
+		const readFrom = (resourcesPlatformName: string) =>
+			this.$xcconfigService.readPropertyValue(
+				path.join(
+					projectData.appResourcesDirectoryPath,
+					resourcesPlatformName,
+					constants.BUILD_XCCONFIG_FILE_NAME,
+				),
+				propertyName,
+			);
+		return (
+			(catalyst && readFrom(this.$devicePlatformsConstants.Catalyst)) ||
+			readFrom(platformName)
+		);
+	}
+
 	private getBuildLoggingArgs(): string[] {
 		return this.$logger.getLevel() === "INFO" ? ["-quiet"] : [];
 	}
@@ -306,16 +319,14 @@ export class XcodebuildArgsService implements IXcodebuildArgsService {
 	 * rather than failing — the iOS build keeps whatever the app has chosen.
 	 * `MACCATALYST_DEPLOYMENT_TARGET` is passed alongside because the runtime's
 	 * metadata generator reads it and older runtimes crash when it is unset.
+	 * App_Resources/Catalyst/build.xcconfig can set a higher target than iOS.
 	 */
 	private getCatalystDeploymentTargetArgs(projectData: IProjectData): string[] {
-		const buildSettingsFilePath = path.join(
-			projectData.appResourcesDirectoryPath,
+		const projectDeploymentTarget = this.readBuildSetting(
+			projectData,
 			this.$devicePlatformsConstants.iOS,
-			constants.BUILD_XCCONFIG_FILE_NAME,
-		);
-		const projectDeploymentTarget = this.$xcconfigService.readPropertyValue(
-			buildSettingsFilePath,
 			"IPHONEOS_DEPLOYMENT_TARGET",
+			true,
 		);
 		const minimum = XcodebuildArgsService.MIN_CATALYST_DEPLOYMENT_TARGET;
 		let deploymentTarget = projectDeploymentTarget;
