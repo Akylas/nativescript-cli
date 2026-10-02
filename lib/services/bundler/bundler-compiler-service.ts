@@ -826,6 +826,10 @@ export class BundlerCompilerService
 		const { env } = prepareData;
 		const platformKey = platform.toLowerCase();
 		const envData = Object.assign({}, env, { [platformKey]: true });
+		// Catalyst bundles as iOS (platformData says ios); flag it so the app can tell them apart.
+		if (this.$mobileHelper.isCatalystPlatform(prepareData.platform)) {
+			envData.catalyst = true;
+		}
 
 		const appId = projectData.projectIdentifiers[platform];
 		const appPath = projectData.getAppDirectoryRelativePath();
