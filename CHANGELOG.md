@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [9.2.1](https://github.com/farfromrefug/nativescript-cli/compare/v9.2.0...v9.2.1) (2026-10-03)
+
+
+### Features
+
+* **ios:** let App_Resources/Catalyst/build.xcconfig override the iOS one ([f0582cb](https://github.com/farfromrefug/nativescript-cli/commit/f0582cb1a4e4f869e45a090e7345494a0a5b0186))
+
+
+### Bug Fixes
+
+* **bundler:** pass env.catalyst when bundling for Mac Catalyst ([7667517](https://github.com/farfromrefug/nativescript-cli/commit/7667517ddf2ab16afa39cd67cf1df20801bbc672))
+
 ## [9.2.0](https://github.com/farfromrefug/nativescript-cli/compare/v9.1.0...v9.2.0) (2026-09-27)
 
 
