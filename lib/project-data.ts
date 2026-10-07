@@ -379,6 +379,8 @@ export class ProjectData implements IProjectData {
 			ignoredNativeDependencies = ignoredNativeDependencies.concat(this.nsConfig?.ios?.ignoredNativeDependencies ?? [])
 		} else if (platform === constants.PlatformTypes.android) {
 			ignoredNativeDependencies = ignoredNativeDependencies.concat(this.nsConfig?.android?.ignoredNativeDependencies ?? [])
+		} else if (platform === constants.PlatformTypes.catalyst) {
+			ignoredNativeDependencies = ignoredNativeDependencies.concat(this.nsConfig?.catalyst?.ignoredNativeDependencies ?? [])
 		}
 		return ignoredNativeDependencies;
 	}
