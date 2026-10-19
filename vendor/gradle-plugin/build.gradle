@@ -4,7 +4,10 @@ import static org.gradle.internal.logging.text.StyledTextOutput.Style
 import java.nio.file.Paths
 
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
+// AGP 9+ ships built-in Kotlin support; applying kotlin-android there fails
+if (com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.split('\\.')[0] as int < 9) {
+    apply plugin: 'kotlin-android'
+}
 apply plugin: 'kotlin-parcelize'
 
 def loadPropertyFile = { path ->
@@ -241,7 +244,6 @@ buildscript {
     dependencies {
         classpath "com.android.tools.build:gradle:$androidBuildToolsVersion"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
-        classpath "org.codehaus.groovy:groovy-all:3.0.8"
     }
 
 }
@@ -265,7 +267,6 @@ allprojects {
             url 'https://maven.google.com/'
             name 'Google'
         }
-        jcenter()
         if (pluginDependencies.size() > 0) {
             flatDir {
                 dirs pluginDependencies
@@ -275,8 +276,8 @@ allprojects {
 }
 
 
-def computeCompileSdkVersion = { -> project.hasProperty("compileSdk") ? compileSdk : 35 }
-def computeTargetSdkVersion = { -> project.hasProperty("targetSdk") ? targetSdk : 35 as int }
+def computeCompileSdkVersion = { -> project.hasProperty("compileSdk") ? compileSdk as int : 35 }
+def computeTargetSdkVersion = { -> project.hasProperty("targetSdk") ? targetSdk as int : 35 }
 def computeBuildToolsVersion = { ->
     project.hasProperty("buildToolsVersion") ? buildToolsVersion : "35.0.1"
 }

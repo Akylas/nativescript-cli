@@ -28,6 +28,7 @@ import groovy.xml.XmlSlurper
 import org.apache.commons.io.FileUtils
 
 import javax.inject.Inject
+import org.gradle.process.ExecOperations
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
@@ -44,7 +45,10 @@ apply plugin: "com.android.application"
 apply from: "gradle-helpers/BuildToolTask.gradle"
 apply from: "gradle-helpers/CustomExecutionLogger.gradle"
 apply from: "gradle-helpers/AnalyticsCollector.gradle"
-apply plugin: 'kotlin-android'
+// AGP 9+ ships built-in Kotlin support; applying kotlin-android there fails
+if (com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.split('\\.')[0] as int < 9) {
+    apply plugin: 'kotlin-android'
+}
 apply plugin: 'kotlin-parcelize'
 
 def onlyX86 = project.hasProperty("onlyX86")
@@ -753,15 +757,16 @@ allprojects {
         def artifactType = Attribute.of('artifactType', String)
         android.applicationVariants.configureEach { variant ->
             if (variant.buildType.name == buildType) {
-                variant.getCompileClasspath(null).each { fileDependency -> 
-                    processJar(fileDependency, jars)
+                def compileClasspath = variant.getCompileClasspath(null)
+                compileClasspath.each { fileDependency ->
+                    processJar(fileDependency, jars, compileClasspath)
                 }
             }
         }
     }
 }
 
-def processJar(File jar, jars) {
+def processJar(File jar, jars, compileClasspath) {
     if (!jars.contains(jar)) {
         jars.add(jar)
         def destDir = md5(jar.path)
@@ -774,7 +779,12 @@ def processJar(File jar, jars) {
         // This is crucial for cloud builds because they are different
         // on each incremental build (as each time the gradle user home
         // directory is a randomly generated string)
-        cleanupAllJars.inputs.files jar
+        // Gradle 9 needs the task dependencies of the classpath kept (e.g. generated R.jar), which filter() does.
+        // On Gradle 8 that same dependency closes a cycle (cleanupAllJars -> compileDebugKotlin -> runSbg -> cleanupAllJars),
+        // so there the plain file is used as before.
+        def gradle9 = (project.gradle.gradleVersion.split('\\.')[0] as int) >= 9
+        def jarFiles = gradle9 ? compileClasspath.filter { it == jar } : jar
+        cleanupAllJars.inputs.files jarFiles
 
         task "${taskName}"(type: WorkerTask) {
             dependsOn cleanupAllJars
@@ -785,7 +795,7 @@ def processJar(File jar, jars) {
             // fails due to missing JARs
             runSbg.dependsOn it
 
-            inputs.files jar
+            inputs.files jarFiles
             outputs.dir outputDir
 
             doLast {
@@ -1201,7 +1211,8 @@ task buildMetadata(type: BuildToolTask) {
         def validateSigningTaskName = "validateSigning${buildTypeName}"
         def validateSigningTask = tasks.findByName(validateSigningTaskName)
 
-        if (validateSigningTask) {
+        // only the variant being built: other variants (e.g. release in a debug run) may have no keystore
+        if (validateSigningTask && variant.buildType.name == project.selectedBuildType) {
             dependsOn validateSigningTask
         }
 
@@ -1626,6 +1637,11 @@ def resolveNodePath = { ->
     project.hasProperty("nodePath") ? nodePath as String : "node"
 }
 
+interface InjectedExecOps {
+    @Inject
+    ExecOperations getExecOps()
+}
+
 task compileBytecode {
     // No inputs/outputs declared on purpose: the task is cheap and idempotent
     // (it skips files that are already bytecode) and must re-run whenever the
@@ -1668,7 +1684,7 @@ task compileBytecode {
         }
         // The driver prints its own "[bytecode] ... compiled N file(s)" summary to
         // stdout, which surfaces in the build log below.
-        exec {
+        project.objects.newInstance(InjectedExecOps).execOps.exec {
             commandLine cmd
         }
         outLogger.withStyle(Style.SuccessHeader).println "\t + [bytecode] done."
