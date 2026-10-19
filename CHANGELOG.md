@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [9.2.2](https://github.com/farfromrefug/nativescript-cli/compare/v9.2.1...v9.2.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* **android:** make vendored gradle scripts work with Gradle 9.x and AGP 9 ([c787b02](https://github.com/farfromrefug/nativescript-cli/commit/c787b027d5faa130f21804863b341e15b7dee217))
+
 ### [9.2.1](https://github.com/farfromrefug/nativescript-cli/compare/v9.2.0...v9.2.1) (2026-10-03)
 
 
