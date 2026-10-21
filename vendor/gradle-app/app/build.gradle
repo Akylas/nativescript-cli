@@ -1308,6 +1308,12 @@ task buildMetadata(type: BuildToolTask) {
         inputs.dir(kotlinClassesDir)
     }
 
+    // AGP 9 built-in Kotlin no longer writes to tmp/kotlin-classes
+    def builtInKotlinClassesDir = layout.buildDirectory.dir("intermediates/built_in_kotlinc").get().asFile
+    if (builtInKotlinClassesDir.exists()) {
+        inputs.dir(builtInKotlinClassesDir)
+    }
+
     outputs.files("$METADATA_OUT_PATH/treeNodeStream.dat", "$METADATA_OUT_PATH/treeStringsStream.dat", "$METADATA_OUT_PATH/treeValueStream.dat")
 
     workingDir "$BUILD_TOOLS_PATH"
@@ -1320,6 +1326,7 @@ task buildMetadata(type: BuildToolTask) {
 
         def classesSubDirs = []
         def kotlinClassesSubDirs = []
+        def builtInKotlinClassesDirs = []
         def selectedBuildType = project.ext.selectedBuildType
 
         rootProject.subprojects {
@@ -1344,6 +1351,17 @@ task buildMetadata(type: BuildToolTask) {
                     }
                 }
             }
+
+            // AGP 9 built-in Kotlin: intermediates/built_in_kotlinc/<buildType>/compile<BuildType>Kotlin/classes
+            def projectBuiltInKotlinDir = it.layout.buildDirectory.dir("intermediates/built_in_kotlinc/${selectedBuildType}").get().asFile
+            if (projectBuiltInKotlinDir.exists()) {
+                for (File taskDir : projectBuiltInKotlinDir.listFiles()) {
+                    def builtInClasses = new File(taskDir, "classes")
+                    if (builtInClasses.exists() && !builtInKotlinClassesDirs.contains(builtInClasses)) {
+                        builtInKotlinClassesDirs.add(builtInClasses)
+                    }
+                }
+            }
         }
 
         def generatedClasses = new LinkedList<String>()
@@ -1357,6 +1375,10 @@ task buildMetadata(type: BuildToolTask) {
             if (subDir.getName() == selectedBuildType) {
                 generatedClasses.add(subDir.getAbsolutePath())
             }
+        }
+
+        for (File builtInClasses : builtInKotlinClassesDirs) {
+            generatedClasses.add(builtInClasses.getAbsolutePath())
         }
 
         def store = new ArrayList<File>()
