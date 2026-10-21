@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [9.2.3](https://github.com/farfromrefug/nativescript-cli/compare/v9.2.2...v9.2.3) (2026-10-21)
+
+
+### Bug Fixes
+
+* **android:** include AGP 9 built-in Kotlin classes in metadata generation ([e60c054](https://github.com/farfromrefug/nativescript-cli/commit/e60c054e478de2e305f019fa6b9d7bfb7011b255))
+
 ### [9.2.2](https://github.com/farfromrefug/nativescript-cli/compare/v9.2.1...v9.2.2) (2026-10-19)
 
 
