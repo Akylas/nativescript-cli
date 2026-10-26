@@ -861,7 +861,20 @@ export class IOSProjectService
 		if (resources && !this.$options.hostProjectPath) {
 			const references = project.pbxFileReferenceSection();
 
-			const xcodeProjectImages = _.map(<any[]>resources.children, (resource) =>
+			// plugins add their own files (platforms/ios/Resources) to this group,
+			// only the ones coming from App_Resources are ours to sync/remove
+			const appResourcesRelativePath = path.relative(
+				this.getPlatformData(projectData).projectRoot,
+				this.getAppResourcesDestinationDirectoryPath(projectData),
+			);
+			const appResourcesReferences = _.filter(
+				<any[]>resources.children,
+				(resource) =>
+					this.replace(references[resource.value].path || "").startsWith(
+						appResourcesRelativePath + path.sep,
+					),
+			);
+			const xcodeProjectImages = _.map(appResourcesReferences, (resource) =>
 				this.replace(references[resource.value].name),
 			);
 			this.$logger.trace("Images from Xcode project");
